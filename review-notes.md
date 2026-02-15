@@ -1,51 +1,94 @@
 # Draft-0 Review Notes
 
-*Updated 2026-02-15. Items resolved in-session are omitted.*
+*Updated 2026-02-15 20:39:00*
 
 ## Inconsistencies
 
-**1. `this` binding is unspecified (§7)**
+**1. RESOLVED — `this` binding is unspecified (§7)**
 `this.x` appears in the `length` method (line 155) but the spec never defines `this` binding rules. Call-site? Lexical? Bound to the receiver of a dot-call? Critical to define since there's no `class`, `bind`, or `call`/`apply`.
 
-**2. Vec2 example has a type hole (§7)**
+● This one is probably the hardest.
+
+❯ What are our options here?
+
+● Three main options, each with trade-offs:
+
+  Option A: Call-site binding (JS behavior)
+  this is the object left of the dot at call time. v.length() → this is v. Familiar to JS developers, transpiles trivially (it's already what JS does). But it's the source of countless JS
+  bugs — this changes depending on how you call the function, not where you define it.
+
+  let v = Vec2.create(3, 4);
+  let fn = v.length;  # detach the method
+  fn();               # `this` is... undefined? global? bug.
+
+  Option B: Lexical this (always bound to definition context)
+  Like arrow functions in JS — this refers to the enclosing scope at definition time. Safe, predictable. But it doesn't work for prototype methods at all: length is defined on Vec2, not on v,
+   so this would be Vec2, not the instance. This basically kills prototypal inheritance patterns.
+
+  Option C: Receiver binding (call-site, but with safeguards)
+  this is bound to the receiver of a dot-call, like Option A — but GPJ makes detaching a method a type error. You can call v.length() but you cannot do let fn = v.length (extracting a method
+  without calling it). This eliminates the entire class of this-detachment bugs while keeping prototype patterns working.
+
+  If you need to pass a method around, you wrap it: let fn = () => v.length();
+
+  ---
+  My recommendation: Option C. It's "JS done right" — same intuitive dot-call behavior, but the footgun is removed at the type level. Transpiles to JS naturally (just this), with the safety
+  enforced at parse time, not runtime.
+
+❯ Option C.
+
+
+**2. RESOLVED — Vec2 example has a type hole (§7)**
 `Vec2.create` returns `Vec2Instance` which is `{x: Number, y: Number}`, but then line 160 calls `v.length()` — which isn't in `Vec2Instance`. The prototype method `length` is inherited via `Object.create(Vec2)`, but the type system only sees the declared return type. Either:
 - `Vec2Instance` needs to include `length` (and `create`), or
 - The spec needs to explain how prototype methods interact with structural types.
 
-**3. `#` comment vs `#private` mention (§7)**
-Line 163 says "No `#private` fields" — `#` as comment character makes `#private` syntax impossible anyway. The phrasing could acknowledge this is a natural consequence of the comment syntax rather than implying a separate design choice.
+❯ what other methods besides Object.length() and Object.create(Vec2) does JS Object have?
 
-## Larger Omissions
+● Static methods (Object.xxx):
 
-**4. No spread/rest specification**
-§6 uses `...nums` rest params (line 122) but spread/rest is never formally defined. Can you spread into arrays? Function calls? Object literals?
+  ┌─────────────────────────────────────────────┬──────────────────────────────────────────────────────────────┐
+  │                   Method                    │                           Purpose                            │
+  ├─────────────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
+  │ Object.keys(obj)                            │ Own enumerable property names → Array<String>                │
+  ├─────────────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
+  │ Object.values(obj)                          │ Own enumerable property values → Array                       │
+  ├─────────────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
+  │ Object.entries(obj)                         │ Key-value pairs → Array<[String, any]>                       │
+  ├─────────────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
+  │ Object.create(proto)                        │ Create object with given prototype                           │
+  ├─────────────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
+  │ Object.assign(target, ...sources)           │ Copy own properties (shallow merge)                          │
+  ├─────────────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
+  │ Object.freeze(obj)                          │ Make object immutable                                        │
+  ├─────────────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
+  │ Object.isFrozen(obj)                        │ Check if frozen                                              │
+  ├─────────────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
+  │ Object.getPrototypeOf(obj)                  │ Get prototype                                                │
+  ├─────────────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
+  │ Object.setPrototypeOf(obj, proto)           │ Set prototype (discouraged, slow)                            │
+  ├─────────────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
+  │ Object.defineProperty(obj, key, descriptor) │ Define property with getter/setter/writable/enumerable flags │
+  ├─────────────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
+  │ Object.getOwnPropertyNames(obj)             │ All own property names (incl. non-enumerable)                │
+  ├─────────────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
+  │ Object.hasOwn(obj, key)                     │ Own property check (newer, replaces hasOwnProperty)          │
+  └─────────────────────────────────────────────┴──────────────────────────────────────────────────────────────┘
 
-**5. No `typeof` / type reflection**
-§13 mentions narrowing via `typeof` as an open question, but `typeof` itself is never introduced. No way to inspect types at runtime.
+  Instance methods (on Object.prototype):
 
-**6. No iteration protocol**
-`for...of` is listed (§5) but nothing defines what's iterable. Can you `for...of` a `String`? What does `Object.keys()` return — `Array<String>`?
+  ┌─────────────────────┬─────────────────────────────────────────────────────────┐
+  │       Method        │                         Purpose                         │
+  ├─────────────────────┼─────────────────────────────────────────────────────────┤
+  │ hasOwnProperty(key) │ Check own property                                      │
+  ├─────────────────────┼─────────────────────────────────────────────────────────┤
+  │ toString()          │ String representation                                   │
+  ├─────────────────────┼─────────────────────────────────────────────────────────┤
+  │ valueOf()           │ Primitive value (used by coercion — irrelevant for GPJ) │
+  ├─────────────────────┼─────────────────────────────────────────────────────────┤
+  │ isPrototypeOf(obj)  │ Check if in prototype chain                             │
+  └─────────────────────┴─────────────────────────────────────────────────────────┘
 
-**7. Module resolution unspecified**
-`import ... from "module"` (§10) doesn't define how `"module"` resolves to a file. Relative paths? Extensions? Search paths?
+  Note: Object.length isn't really a thing in JS — you might be thinking of Array.length or Object.keys(obj).length. Objects don't have a .length property.
 
-**8. No grammar or precedence table**
-Operator precedence, associativity, and expression grammar are absent. "Same as JS" references a 700-page spec — GPJ should at minimum list its precedence levels.
-
-**9. Mutability of compound values**
-`val` makes a binding immutable, but is the referenced value frozen? Can you do `val a = [1,2]; a.push(3);`? JS `const` allows mutation of the value — GPJ should state its stance.
-
-**10. `None` behavior gaps**
-- Is `None == None` false? (stated in §1 transpiler note as a deviation, but not formalized in §8)
-- Can `None` appear in arrays: `Array<Number?>`?
-- What does `console.log(None)` print? (likely `"None"` per §2.1 toString, but worth confirming)
-- Can `None` be used in `switch` cases?
-
-**11. `catch` binding type**
-§9 guarantees `{message: String}` for thrown values, but what is the type of `e` in `catch(e)`? Is it `{message: String}`? Can you access `e.code` from the `{message, code}` example without a type error? If `e` is typed as `{message: String}`, additional properties are invisible without narrowing — which isn't specified.
-
-**12. `toString()` and the type system**
-§2.1 says all types have `toString()`, but this isn't reflected in structural type definitions. If I declare `type Foo = {x: Number}`, does `Foo` implicitly have `toString()`? Is `toString()` on a protocol/trait level separate from structural properties? This needs clarifying — especially for objects that override `toString()`, since the override needs to be type-compatible.
-
-**13. String templating forward reference**
-§1 mentions string templating is "not yet specified" and §2.1 lists it as a `toString()` invocation site. These should stay consistent as templating gets designed.
+  For GPJ's minimal surface, the useful subset is probably: keys, values, entries, create, assign, freeze, isFrozen, getPrototypeOf, and hasOwn.

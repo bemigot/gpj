@@ -1,0 +1,9 @@
+  1. #3 — # comment vs #private phrasing (§7) — Pure wording fix. Just rewrite line 163 to say the absence of #private is a natural consequence of # comments, not a separate design choice.
+  One sentence edit.
+  2. #13 — String templating forward reference — Just add a cross-reference note in §2.1 linking to §1's "not yet specified" statement, keeping them consistent. A sentence or two.
+  3. #10 — None behavior gaps — Most of these have obvious answers given existing spec decisions: None == None → true (structural equality), None in arrays → yes via Array<Number?>,
+  console.log(None) → "None" per toString, None in switch → yes. Just formalize what's already implied.
+  4. #9 — Mutability of compound values — A one-paragraph policy decision. The JS-transpiler-first approach strongly suggests JS semantics: val freezes the binding, not the value. Just state
+  it explicitly in §4.
+  5. #11 — catch binding type — The spec already says thrown values match {message: String}. Simplest resolution: type e as {message: String, [key: String]: Any} or just say e has the
+  structural type of whatever was thrown, with message: String guaranteed. One paragraph in §9.
