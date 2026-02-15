@@ -1,0 +1,3 @@
+#!/usr/bin/env gpj
+# Hello, world in GPJ
+console.log("Hello, world!");

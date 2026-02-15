@@ -1,0 +1,6 @@
+#!/bin/env gpj
+# Test basic GPJ features
+console.log("Hello, world!");
+console.log(42);
+console.log(1, 2.3, "let's go");
+console.log(true, false, None);
