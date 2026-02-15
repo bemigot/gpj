@@ -8,20 +8,22 @@
 
 GPJ is an interpreted, statically-typed language with JavaScript-inspired syntax. Semicolons terminate statements; newlines are whitespace only. A semicolon is not required after a closing `}` that ends a block statement (`function`, `if`/`else`, `for`, `while`, `try`/`catch`); placing one there is accepted but issues a warning. A semicolon is still required when `}` ends an expression within a statement (e.g. object literals, function expressions assigned to a binding). The type system is optional — undeclared types are inferred at parse time.
 
-**Whitespace:** Spaces are mandatory around binary operators (`+`, `-`, `==`, `&&`, etc.), after `{` and before `}` in object literals and blocks, and after `,` in argument/parameter lists. This is enforced by the parser, not a linter.
+**Whitespace:** Spaces are mandatory around binary operators (`+`, `-`, `==`, `&&`, etc.), after `{` and before `}` in object literals and blocks, and after `,` in argument/parameter lists. This rule applies only to binary operators — bracket access (`a[0]`, `a[i]`) requires no inner spaces. This is enforced by the parser, not a linter.
 
-The first `gpj` prototype is a GPJ-to-JavaScript transpiler — GPJ semantics map nearly directly to JS, with targeted deviations where JS got it wrong (e.g. `None != None`, structural equality, no implicit coercion). This keeps the implementation simple while the language design stabilizes.
+The first `gpj` prototype is a GPJ-to-JavaScript transpiler — GPJ semantics map nearly directly to JS, with targeted deviations where JS got it wrong (e.g. structural equality, no implicit coercion, unified `None`). This keeps the implementation simple while the language design stabilizes.
 
-The `gpj` interpreter operates as a primitive interactive REPL and as a script runner. Scripts use `#` for end-of-line comments, so the standard shebang works:
+The `gpj` interpreter operates as a primitive interactive REPL and as a script runner. Scripts use `#` for end-of-line comments, so the standard shebang works. `#` inside string literals is not treated as a comment — the lexer only recognizes `#` as a comment start outside of quoted strings.
 
 ```
 #!/bin/env gpj
 let x = 42;  # this is a comment. Two spaces before '#' is the recommended style
+val s = 'I mean # is totally OK in string literals.';  # comment starts here
 ```
 
 Currently implemented I/O is limited to:
 
-- `console.log(...)` — prints arguments space-separated, calling `.toString()` on each. E.g. `console.log(1, 2.3, "let's go");`
+- `console.log(...)` — prints to stdout, arguments space-separated, calling `.toString()` on each. E.g. `console.log(1, 2.3, "let's go");`
+- `console.error(...)` — same as `console.log`, but prints to stderr.
 - Module `import` — file-based module loading.
 
 String templating, `fs`, and other I/O are not yet specified.
@@ -44,13 +46,75 @@ Objects may override `toString()` with a custom implementation. If no override i
 
 ### 2.2 Compound Types
 
-`Object`, `Array<T>`, `Function`. `Object` is the top type for non-primitives — it means "any object." No properties can be accessed on a bare `Object` without a type error; use structural types or type aliases to describe specific shapes. Arrays are typed and homogeneous by default.
+`Object`, `Array<T>`, `Tuple`, `Map<K, V>`, `Set<T>`, `Function`, `Unknown`. `Object` is the top type for non-primitives — it means "any object." No properties can be accessed on a bare `Object` without a type error; use structural types or type aliases to describe specific shapes. Arrays are typed and homogeneous by default.
+
+`Unknown` is the safe top type — any value can be assigned to `Unknown`, but no operations are permitted on it without first narrowing via `typeof` (§3.1). There is no `Any` type. This forces explicit type checks before use, consistent with GPJ's no-ambiguity principle.
+
+```
+let x: Unknown = 42;          # OK — any value can be assigned
+x + 1;                         # ERROR — cannot operate on Unknown
+if (typeof x == "Number") {
+    x + 1;                     # OK — narrowed to Number
+}
+```
+
+*Post-v0.1 consideration: generics (`<T>`) may replace most uses of `Unknown` in stdlib signatures, making them fully type-safe without narrowing.*
 
 ```
 let a: Array<Number> = [1, 2, 3];
 let b = [1, 2, 3];              # inferred Array<Number>
 let c: Array<Number | String> = [1, "two"];  # union required for mixed
 ```
+
+**Tuples** are fixed-length, heterogeneously-typed sequences. The type is written as a comma-separated list in square brackets:
+
+```
+let t: [String, Number] = ["age", 30];
+let first = t[0];                # String
+let second = t[1];               # Number
+t[2];                            # ERROR — index out of bounds
+```
+
+`Pair<K, V>` is a built-in alias for `[K, V]`:
+
+```
+type Pair<K, V> = [K, V];
+let entry: Pair<String, Number> = ["x", 42];
+```
+
+Tuples are immutable in length — elements cannot be added or removed. Element values can be reassigned if the binding is `let`. Tuples transpile to plain JS arrays.
+
+**Map<K, V>** is a typed key-value collection. Unlike objects-as-dictionaries, keys can be any type and lookup is based on deep equality (`==`). Maps maintain insertion order.
+
+```
+let m: Map<String, Number> = Map.of(["x", 1], ["y", 2]);
+m.get("x");                    # 1
+m.set("z", 3);
+m.has("y");                    # true
+m.delete("x");
+m.size;                        # 2
+
+for (let [key, value] of m) { console.log(key, value); }
+```
+
+Map methods: `get(key): V?`, `set(key, value): None`, `has(key): Boolean`, `delete(key): Boolean`, `clear(): None`, `size: Number`, `keys(): Array<K>`, `values(): Array<V>`, `entries(): Array<Pair<K, V>>`. Maps are iterable via `for...of`, yielding `Pair<K, V>`.
+
+**Set<T>** is a typed collection of unique values. Uniqueness is based on deep equality (`==`). Sets maintain insertion order.
+
+```
+let s: Set<Number> = Set.of(1, 2, 3);
+s.add(4);
+s.add(2);                     # no effect — already present
+s.has(3);                     # true
+s.delete(1);
+s.size;                       # 3
+
+for (let n of s) { console.log(n); }
+```
+
+Set methods: `add(value): None`, `has(value): Boolean`, `delete(value): Boolean`, `clear(): None`, `size: Number`, `values(): Array<T>`. Sets are iterable via `for...of`, yielding `T`.
+
+Both `Map` and `Set` transpile to JS `Map` and `Set`, with the equality helper used for non-primitive keys/values.
 
 Objects use structural typing:
 
@@ -70,7 +134,7 @@ let n: Number? = None;           # sugar for Number | None
 
 `None` behavior:
 
-- `None != None` — `None` is not equal to itself. This is a deliberate deviation from JS (`null === null` is `true` in JS). Use `x == None` style checks with caution; test for the presence of a value rather than the absence of one.
+- `None == None` — `None` is equal to itself. `x == None` is a valid way to test for absence.
 - `None` may appear in typed arrays: `Array<Number?>` can contain `None` elements.
 - `console.log(None)` prints `"None"` (via `toString()`).
 - `None` is a valid `switch` case value.
@@ -84,7 +148,7 @@ type ID = String | Number;
 
 ## 3. Type System
 
-Static typing, checked at parse time before execution. Inference fills in omitted annotations using standard HM-style local inference.
+Static typing, checked at parse time before execution. Inference fills in omitted annotations using standard HM-style **local inference** — types are inferred within function bodies, but function signatures serve as explicit type boundaries. Parameters and return types on exported or public functions must be annotated; the compiler does not infer types across function call sites. This ensures errors are reported where they originate, not in distant code.
 
 **No implicit type conversions, ever.** Every operand must already be the expected type. `+` between `Number` and `String` is a type error. When the interpreter cannot unambiguously determine the type or meaning of an instruction, it halts with a diagnostic — it never guesses. Explicit conversion via `String(n)`, `Number(s)`, etc.
 
@@ -152,15 +216,82 @@ let x = 10;  # mutable
 val y = 20;  # immutable binding
 ```
 
-`val` makes the *binding* immutable — it cannot be reassigned. The referenced value itself is **not** frozen: properties of objects and elements of arrays bound with `val` can still be mutated. This matches JavaScript `const` semantics.
+`val` makes the binding immutable **and** shallow-freezes the value. Properties of objects and elements of arrays bound with `val` cannot be mutated. `let` leaves both the binding and value mutable.
 
 ```
+val p = {x: 1, y: 2};
+p.x = 3;        # ERROR — value is frozen
+p = {x: 3};     # ERROR — binding is immutable
+
+let q = {x: 1, y: 2};
+q.x = 3;        # OK — mutable value
+q = {x: 3};     # OK — mutable binding
+
 val a = [1, 2, 3];
-a.push(4);       # OK — mutating the array value
-a = [5, 6];      # ERROR — reassigning the binding
+a.push(4);       # ERROR — value is frozen
+a[0] = 9;        # ERROR — value is frozen
+a = [5, 6];      # ERROR — binding is immutable
 ```
+
+Freeze is shallow — nested objects inside a `val` binding are not frozen unless themselves bound with `val`. Use `Object.freeze()` to explicitly freeze a `let`-bound value or to deep-freeze nested structures.
+
+```
+val outer = {inner: {x: 1}};
+outer.inner = {x: 2};          # ERROR — outer is frozen
+outer.inner.x = 2;             # OK — inner is not frozen (shallow)
+
+val deep = {inner: Object.freeze({x: 1})};
+deep.inner.x = 2;              # ERROR — inner explicitly frozen
+```
+
+For primitives (`Number`, `String`, `Boolean`, `None`), `val` and `let` differ only in rebinding — primitive values are inherently immutable.
 
 No `var`. Lexical scoping only. No hoisting.
+
+### 4.1 Destructuring
+
+Destructuring extracts values from objects, arrays, and tuples into bindings. Works with both `let` and `val`.
+
+**Object destructuring:**
+
+```
+let point = {x: 1, y: 2, z: 3};
+let {x, y} = point;               # x = 1, y = 2
+val {x: px, y: py} = point;       # rename: px = 1, py = 2
+let {x, ...rest} = point;         # x = 1, rest = {y: 2, z: 3}
+```
+
+**Array and tuple destructuring:**
+
+```
+let arr = [1, 2, 3, 4];
+let [first, second] = arr;        # first = 1, second = 2
+let [head, ...tail] = arr;        # head = 1, tail = [2, 3, 4]
+
+let entry: Pair<String, Number> = ["x", 42];
+let [key, value] = entry;         # key = "x", value = 42
+```
+
+**Function parameters:**
+
+```
+function distance({x: Number, y: Number}): Number {
+    return Math.sqrt((x * x) + (y * y));
+}
+
+function first([head, ...tail]: Array<Number>): Number {
+    return head;
+}
+```
+
+**Nested destructuring:**
+
+```
+let data = {pos: {x: 1, y: 2}, name: "origin"};
+let {pos: {x, y}, name} = data;   # x = 1, y = 2, name = "origin"
+```
+
+All destructured bindings are type-checked — mismatches are a compile error. Missing properties on object destructuring are an error unless the type is nullable. Destructuring transpiles directly to JS destructuring.
 
 ## 5. Control Flow
 
@@ -226,16 +357,17 @@ No `async`/`await`. No generators. No Promises as a language primitive.
 
 Object literals, dot access, bracket access, computed properties — all as JS. Prototypal inheritance via `Object.create()`. No `class` syntax sugar.
 
-**`this` binding:** In a method call `obj.method()`, `this` is bound to `obj` (the receiver of the dot-call). This is the same as JS call-site binding, with one safeguard: **detaching a method from its receiver is a type error.** A method can only be invoked via dot-call, never extracted as a standalone value.
+**`this` binding:** In a method call `obj.method()`, `this` is bound to `obj` (the receiver). **Methods must be called immediately when accessed** — accessing a method via dot notation without calling it is a parse error. This is a simple syntactic rule: if a dot-access resolves to a function, `()` must follow.
 
 ```
 let v = Vec2.create(3, 4);
-v.length();            # OK — this is v
-let fn = v.length;     # ERROR — cannot detach method from receiver
-let fn = () => v.length();  # OK — wrap in a closure instead
+v.length();                 # OK — accessed and called
+let fn = v.length;          # ERROR — accessed but not called
+someFunc(v.length);         # ERROR — same rule
+let fn = () => v.length();  # OK — closure calls the method itself
 ```
 
-This eliminates the entire class of JS `this`-detachment bugs while keeping prototype patterns working. Transpiles directly to JS `this` — the safety is enforced at parse time.
+Transpiles directly to JS `this` — the safety is enforced at parse time, zero runtime cost.
 
 ```
 type Vec2Instance = {x: Number, y: Number};
@@ -260,7 +392,7 @@ console.log(v.length());  # 5
 
 No `class`, `new`, `extends`, or `super`. Prototype chains are set up explicitly via `Object.create()`.
 
-**Private properties:** Properties prefixed with `_` are private — they can only be accessed from functions defined in the same object literal. This enforces at the language level the convention JS developers already follow.
+**Private properties:** Properties prefixed with `_` are private. Access via `this._x` is allowed only inside functions that are **lexically defined within the same object literal** where `_x` is declared. This is a purely syntactic rule — the parser checks which `{ }` a function was written inside. No runtime cost.
 
 ```
 let Counter = {
@@ -269,8 +401,8 @@ let Counter = {
         self._n = 0;
         return self;
     },
-    count: function(): None { this._n = this._n + 1; },  # OK — same object literal
-    value: function(): Number { return this._n; }          # OK
+    count: function(): None { this._n = this._n + 1; },  # OK — same literal as _n
+    value: function(): Number { return this._n; }          # OK — same literal as _n
 };
 
 let c = Counter.create();
@@ -278,29 +410,54 @@ c.count();
 c._n;  # ERROR — _n is private to Counter
 ```
 
-*Note: the exact scoping rules for `_` privacy may evolve as real usage experience accumulates.*
+Functions defined outside the literal cannot access `_` properties, even if assigned as methods:
+
+```
+let helper = function(): Number { return this._n; };  # ERROR — _n not visible here
+let Broken = {
+    _n: 0,
+    getValue: helper   # helper cannot access _n
+};
+```
+
+Child objects created via `Object.create(Counter)` inherit methods like `count` — those methods retain access to `_` properties because they were lexically defined in the Counter literal.
 
 ## 8. Operators
 
-**No operator precedence.** Expressions combining more than one binary operator must be explicitly parenthesized. This eliminates an entire class of bugs and removes the need for a precedence table.
+**No operator precedence.** Expressions combining *different* binary operators must be explicitly parenthesized. This eliminates an entire class of bugs and removes the need for a precedence table. Chaining the *same* operator is allowed and groups left-to-right (left-associative).
 
 ```
-let x = 1 + 2 + 3;        # ERROR — ambiguous grouping
-let x = (1 + 2) + 3;      # OK
-let x = 1 + (2 + 3);      # OK
-let y = a && b || c;       # ERROR
-let y = a && (b || c);     # OK
-let z = a * b + c;         # ERROR
+let x = 1 + 2 + 3;        # OK — same operator, left-associative: (1 + 2) + 3
+let s = "a" + "b" + "c";  # OK — same operator: ("a" + "b") + "c"
+let y = a && b && c;       # OK — same operator: (a && b) && c
+let z = a * b + c;         # ERROR — different operators, ambiguous
 let z = (a * b) + c;       # OK
+let w = a && b || c;       # ERROR — different operators
+let w = a && (b || c);     # OK
+let v = a == b == c;       # ERROR — chaining comparison is not meaningful
 ```
 
-A single binary operator with no grouping ambiguity needs no parentheses: `a + b`, `x == y`, `p && q` are all valid. Unary operators (`!`, unary `-`) bind to their operand directly and do not require parentheses: `!done`, `-x`, `!(a && b)`.
+A single binary operator needs no parentheses: `a + b`, `x == y`, `p && q`. Unary operators (`!`, unary `-`) bind to their operand directly and do not require parentheses: `!done`, `-x`, `!(a && b)`.
+
+**Exception:** comparison operators (`==`, `!=`, `<`, `>`, `<=`, `>=`) cannot be chained — `a == b == c` is always an error. Comparisons return `Boolean`, so chaining them is almost certainly a bug.
 
 Arithmetic: `+`, `-`, `*`, `/`, `%`, `**`. Only valid on `Number` (except `+` for `String` concatenation among `String` operands).
 
-Comparison: `==`, `!=` (structural, no coercion). `<`, `>`, `<=`, `>=` for `Number` and short (less than 128 chars) `String`.
+Comparison: `==`, `!=` (structural, no coercion) for all types. `<`, `>`, `<=`, `>=` for `Number` only. String ordering is not supported via operators — use `String.compare(a, b)` which returns `-1`, `0`, or `1`.
 
-For objects, `==` compares own properties only — prototype chains are not walked. Two objects are equal if they have the same set of own property keys and each corresponding value is `==`. This mirrors the structural type system: same shape, same data → equal. Prototype identity can be compared explicitly via `Object.getPrototypeOf()`. Circular references in structural comparison are detected and cause a runtime error.
+For objects and arrays, `==` performs **deep recursive comparison** of own properties — same shape, same data → equal. Prototype chains are not walked; only own properties are compared. Nested objects, arrays, and tuples are compared recursively. Circular references are detected at runtime and cause an error.
+
+```
+{a: {b: 1}} == {a: {b: 1}};         # true — deep comparison
+[1, [2, 3]] == [1, [2, 3]];         # true
+{a: 1, b: 2} == {a: 1};             # false — different shape
+```
+
+Prototype identity can be compared explicitly via `Object.getPrototypeOf()`.
+
+*Note for JS programmers:* `==` in GPJ is value equality, not reference identity. There is no reference comparison operator — two distinct objects with the same contents are equal.
+
+**Transpiler optimization:** when the type checker can prove both operands are primitives, `==` emits as JS `===` directly. The recursive comparison helper is only emitted when either operand could be an object, array, or tuple.
 
 Logical: `&&`, `||`, `!`. Short-circuit as JS.
 
@@ -308,33 +465,48 @@ No `===`, `!==` (redundant). No bitwise operators (use stdlib if needed).
 
 ## 9. Error Handling
 
-`try`/`catch`/`finally` and `throw`, same semantics as JS. Thrown values must structurally match `{message: String}` (i.e. any object with at least a `message` property of type `String`). This guarantees `catch` blocks can always access `e.message`.
-
-The `catch` binding `e` is typed as `{message: String}`. Additional properties from the thrown object exist at runtime but are not accessible without narrowing. To access extra properties, declare a type alias and use a type annotation on the catch binding:
-
-```
-type HttpError = {message: String, code: Number};
-
-try {
-    throw {message: "not found", code: 404};
-} catch (e: HttpError) {
-    console.log(e.code);  # 404
-}
-```
-
-When no annotation is given, `e` defaults to `{message: String}`.
+`try`/`catch`/`finally` and `throw`. Thrown values must structurally match `{message: String}` (i.e. any object with at least a `message` property of type `String`). This guarantees `catch` blocks can always access `e.message`.
 
 ```
 throw {message: "something went wrong"};
 throw {message: "not found", code: 404};  # additional properties are fine
-
-type ValueError = {message: String, value: Number};
-throw {message: "out of range", value: -1};  # matches ValueError
 ```
+
+**Typed catch blocks:** A `catch` block with a type annotation only executes if the thrown value **structurally matches** the annotated type at runtime — i.e. the object has all the declared properties with the correct types. If it doesn't match, the exception propagates to the next `catch` block or re-throws up the stack.
+
+Multiple `catch` blocks are checked in order (like Java). A bare `catch (e)` with no annotation catches anything matching `{message: String}` and serves as the catch-all. If no `catch` block matches, the exception propagates.
+
+```
+type HttpError = {message: String, code: Number};
+type ValueError = {message: String, value: Number};
+
+try {
+    throw {message: "not found", code: 404};
+} catch (e: HttpError) {
+    console.log(e.code);       # 404 — matches, block executes
+} catch (e: ValueError) {
+    console.log(e.value);      # skipped — didn't match
+} catch (e) {
+    console.log(e.message);    # catch-all — would fire if neither above matched
+}
+```
+
+**Union types** in catch annotations match if the thrown value matches any variant:
+
+```
+catch (e: HttpError | ValueError) {
+    console.log(e.message);    # always available — both have message
+    if (typeof e.code == "Number") {
+        console.log(e.code);   # narrowed — this is an HttpError
+    }
+}
+```
+
+Structural matching is checked at runtime by verifying own properties and their types. This transpiles to a generated type-guard function for each annotated catch block.
 
 ## 10. Modules
 
-Only named exports — no `export default`.
+Imports use Python-style syntax — names are matched by export name, no curly braces.
 
 ```
 import foo from "./utils";
@@ -349,9 +521,7 @@ export function baz(): Number { return 1; }
 export val PI: Number = 3.14159;
 ```
 
-No curly braces around imports. Aliasing via `as` — dotted aliases (e.g. `np.a`) attach the import as a property on an existing alias, allowing lightweight namespace grouping. The parent alias must be defined earlier in the same import statement or in a prior import.
-
-ESM-style. No default exports.
+Each imported name must match an `export`ed name in the target module — unmatched names are a compile error. Aliasing via `as` — dotted aliases (e.g. `np.a`) attach the import as a property on an existing alias, allowing lightweight namespace grouping. The parent alias must be defined earlier in the same import statement or in a prior import.
 
 **Module resolution:** Import paths are relative to the importing file. A path `"./x"` resolves to `./x.gpj`, or `./x/module.gpj` if `./x` is a directory. Bare names (no `./` or `../` prefix) resolve to standard library modules (e.g. `"fs"`). No search paths, no `node_modules`-style resolution.
 
@@ -365,15 +535,15 @@ import * as fs from "fs";            # stdlib
 
 Minimal built-in surface:
 
-- **console** — `console.log` and friends.
+- **console** — `console.log` (stdout), `console.error` (stderr). No `console.warn` (redundant with `console.error`).
 - **Math** — standard math functions.
 - **JSON** — `JSON.parse`, `JSON.stringify`, plus query/builder helpers (JSONPath or similar — TBD).
 - **String** — UTF-8 aware: indexing, slicing, `length` (codepoint count), iteration over codepoints. Standard methods matching JS semantics where applicable.
 - **Object** — static methods (all transpile directly to JS equivalents):
   - `Object.create(proto)` — create object with given prototype.
   - `Object.keys(obj): Array<String>` — own enumerable property names.
-  - `Object.values(obj): Array<Any>` — own enumerable property values.
-  - `Object.entries(obj): Array<Array<Any>>` — key-value pairs as `[String, value]` arrays.
+  - `Object.values(obj): Array<Unknown>` — own enumerable property values. Narrow before use.
+  - `Object.entries(obj): Array<Pair<String, Unknown>>` — key-value pairs as `[String, value]` tuples. Narrow values before use.
   - `Object.assign(target, ...sources)` — shallow-copy own properties from sources to target. Returns target.
   - `Object.freeze(obj)` — make object immutable (properties cannot be added, removed, or changed). Shallow — nested objects remain mutable. Deep freeze may be added later.
   - `Object.isFrozen(obj): Boolean` — check if object is frozen.
@@ -399,7 +569,6 @@ No DOM.
 | `for...in` | Confusing semantics in JS; `Object.keys()` suffices |
 | `class`, `new`, `extends`, `super` | Explicit prototypes via `Object.create()` suffice |
 | `export default` | Named exports only; avoids ambiguity |
-| Destructuring | Deferred to a future revision |
 
 ## 13. Open Questions
 
