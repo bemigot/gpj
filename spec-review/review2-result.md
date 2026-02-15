@@ -1,6 +1,11 @@
+2026-02-15 23:11 *As a competent language designer and transpile-to-JS implementor, and having
+countering JavaScript's pitfalls in mind review Draft-0.md
+Is it OK to move to impementing "Hello, world" transpiler and on?
+Present your review notes and save them as review2-result.md*
+
 # GPJ Draft-0 — Final Pre-Implementation Review
 
-**Reviewed:** 2026-02-15
+**Reviewed:** 2026-02-15 23:15
 **Verdict:** Ready to start. Move to "Hello, world" transpiler.
 
 ---
