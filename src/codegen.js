@@ -7,6 +7,17 @@ class CodegenError extends Error {
   }
 }
 
+const PRIMITIVE_LITERALS = new Set([
+  "NumberLiteral",
+  "StringLiteral",
+  "BooleanLiteral",
+  "NoneLiteral",
+]);
+
+function isPrimitiveLiteral(node) {
+  return PRIMITIVE_LITERALS.has(node.type);
+}
+
 function generate(node) {
   switch (node.type) {
     case "Program":
@@ -57,9 +68,9 @@ function generate(node) {
     case "VarDeclaration": {
       const jsKind = node.kind === "val" ? "const" : "let";
       const init = generate(node.init);
-      const freeze = node.kind === "val" ? `\n${node.name} = Object.freeze(${node.name});` : "";
-      // For val, we need to freeze non-primitives. But for step 0, simple const suffices.
-      // We'll add freeze logic when we implement val semantics properly.
+      if (node.kind === "val" && !isPrimitiveLiteral(node.init)) {
+        return `${jsKind} ${node.name} = Object.freeze(${init});`;
+      }
       return `${jsKind} ${node.name} = ${init};`;
     }
 

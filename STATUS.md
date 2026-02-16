@@ -3,13 +3,13 @@
 From now on every step is completed only after a reasonable number of tests are checked in.
 
 #### Step 0.5 — Test infrastructure (prerequisite for all steps)
-- [ ] `package.json` with `node --test` as test runner (no dependencies)
-- [ ] Test harness: run `.gpj` files, assert stdout/stderr/exit code
-- [ ] GitHub Actions CI: run tests on push
+- [x] `package.json` with `node --test` as test runner (no dependencies)
+- [x] Test harness: run `.gpj` files, assert stdout/stderr/exit code
+- [x] GitHub Actions CI: run tests on push
 
 #### Steps
 
-1. `let`/`val` declarations with primitives (Number, String, Boolean, None)
+1. ~~`let`/`val` declarations with primitives (Number, String, Boolean, None)~~
 2. Arithmetic and string concatenation with type checking
 3. `if`/`else`, `while`, `for`
 4. Functions (declaration and arrow)
