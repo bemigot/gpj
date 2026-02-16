@@ -163,9 +163,10 @@ Static typing, checked at parse time before execution. Inference fills in omitte
 | `Boolean`  | `"Boolean"`     |
 | `None`     | `"None"`        |
 | `Function` | `"Function"`    |
+| `Array`    | `"Array"`       |
 | Any object | `"Object"`      |
 
-No JS quirks — `typeof None` is `"None"` (not `"object"`), arrays are `"Object"`.
+No JS quirks — `typeof None` is `"None"` (not `"object"`), `typeof []` is `"Array"` (not `"object"`).
 
 When a `typeof` check appears in an `if` or `switch` condition, the type checker **narrows** the variable's type in the corresponding branch:
 
@@ -245,6 +246,16 @@ deep.inner.x = 2;              # ERROR — inner explicitly frozen
 ```
 
 For primitives (`Number`, `String`, `Boolean`, `None`), `val` and `let` differ only in rebinding — primitive values are inherently immutable.
+
+**Bootstrapping circular structures:** Because `val` freezes on assignment, circular references must be wired using `let` bindings first. Once the structure is fully connected, it can be committed to immutability by assigning to a `val` (shallow freeze) or via `Object.freeze()`.
+
+```
+let parent = {name: "Root", child: None};
+let child = {name: "Leaf", parent: None};
+parent.child = child;
+child.parent = parent;
+val frozen = parent;         # shallow-freezes parent; child remains mutable
+```
 
 No `var`. Lexical scoping only. No hoisting.
 
@@ -445,7 +456,7 @@ Arithmetic: `+`, `-`, `*`, `/`, `%`, `**`. Only valid on `Number` (except `+` fo
 
 Comparison: `==`, `!=` (structural, no coercion) for all types. `<`, `>`, `<=`, `>=` for `Number` only. String ordering is not supported via operators — use `String.compare(a, b)` which returns `-1`, `0`, or `1`.
 
-For objects and arrays, `==` performs **deep recursive comparison** of own properties — same shape, same data → equal. Prototype chains are not walked; only own properties are compared. Nested objects, arrays, and tuples are compared recursively. Circular references are detected at runtime and cause an error.
+For objects and arrays, `==` performs **deep recursive comparison** of own properties — same shape, same data → equal. Prototype chains are not walked; only own properties are compared. Nested objects, arrays, and tuples are compared recursively. Circular references are handled via a seen-pair registry: if the same pair `(a, b)` is encountered again within the same comparison stack, they are treated as equal for that branch to prevent infinite recursion.
 
 ```
 {a: {b: 1}} == {a: {b: 1}};         # true — deep comparison
@@ -460,6 +471,8 @@ Prototype identity can be compared explicitly via `Object.getPrototypeOf()`.
 **Transpiler optimization:** when the type checker can prove both operands are primitives, `==` emits as JS `===` directly. The recursive comparison helper is only emitted when either operand could be an object, array, or tuple.
 
 Logical: `&&`, `||`, `!`. Short-circuit as JS.
+
+None-coalescing: `??`. `a ?? b` evaluates to `a` if `a` is not `None`, otherwise `b`. Short-circuits — `b` is not evaluated if `a` is not `None`. The left operand must be a nullable type (`T?` or `T | None`); using `??` on a non-nullable type is a type error (it would be dead code). Transpiles directly to JS `??`.
 
 No `===`, `!==` (redundant). No bitwise operators (use stdlib if needed).
 
@@ -574,6 +587,7 @@ No DOM.
 
 1. **Generics beyond Array** — should functions support `<T>` parameters?
 2. **Interface keyword** — structural types via alias suffice, but explicit `interface` may aid readability.
-3. **Stdlib scope** — which `Array`/`String` methods to include at launch.
+3. **Stdlib scope** — which `Array`/`String` methods to include at launch. See `spec-review/stdlib-notes.md`.
 4. **Process/eval** — thread model, `eval()` scoping rules, spawn API shape.
 5. **JSON query** — JSONPath, dot-path helpers, or something else.
+6. **`??` precedence rule** — `??` is a binary operator and currently subject to the no-mixed-precedence rule (must parenthesize when combined with `&&`, `||`, etc.). Consider whether `??` should be exempt as a special form, since `x ?? y || z` has a natural reading.

@@ -15,20 +15,11 @@ As an AI that has to "read" a lot of messy code, I have some thoughts on where t
 
 ### The "Controversial" Choices (The Friction Points)
 
-#### 1. No Operator Precedence
-
-> "Expressions combining different binary operators must be explicitly parenthesized."
-
-This is your most radical departure. While it eliminates the "precedence table" mental tax, it might make mathematical scripting feel verbose.
-
-* **The Friction:** Writing `let x = (a * b) + c;` is fine, but complex formulas will look like Lisp with more characters.
-* **The Upside:** It forces clarity. No one has to remember if `<<` binds tighter than `&`.
+#### 1. No Operator Precedence — deliberate tradeoff, acknowledged.
 
 #### 2. Parser-Enforced Whitespace
 
-Enforcing spaces around operators and inside braces at the **parser level** (rather than the linter) is a "Big Brother" move that would make Pythonistas proud but might frustrate "quick and dirty" scripters.
-
-* **The REPL Problem:** In an interactive REPL, being rejected for `1+1` instead of `1 + 1` can feel like a "pedantry tax." Have you considered allowing the REPL to be more relaxed than the script runner?
+* **Future consideration (REPL):** If a REPL is added, consider relaxing whitespace rules in interactive mode — being rejected for `1+1` instead of `1 + 1` feels like a pedantry tax in exploratory contexts.
 
 #### 3. The `this` Binding Rule
 
@@ -186,9 +177,9 @@ If you wanted to update Section 8 of your proposal, you might change the wording
 This function transforms a circular object into a tree by replacing repeating references with a path string.
 
 ```gpj
-# GPJ doesn't have a standard 'any' - we use Unknown for the generic object
 function decycle(root: Unknown): Unknown {
-  val paths: Map<Object, String> = Map.of();
+  # let, not val — we need to mutate the map during traversal
+  let paths: Map<Object, String> = Map.of();
 
   function deref(obj: Unknown, path: String): Unknown {
     # Narrowing: only objects can have circular references
@@ -205,6 +196,7 @@ function decycle(root: Unknown): Unknown {
     paths.set(obj, path);
 
     # Create a new version of the object/array to avoid mutating the original
+    # Note: Array.isArray() assumed as stdlib — typeof returns "Object" for arrays
     if (Array.isArray(obj)) {
       let nuArr: Array<Unknown> = [];
       for (let i = 0; i < obj.length; i = i + 1) {
@@ -212,8 +204,8 @@ function decycle(root: Unknown): Unknown {
       }
       return nuArr;
     } else {
-      let nuObj: { [key: String]: Unknown } = {};
-      val keys = Object.keys(obj);
+      let nuObj = {};
+      let keys = Object.keys(obj);
       for (let key of keys) {
         nuObj[key] = deref(obj[key], path + "." + key);
       }
@@ -294,12 +286,13 @@ function recycle(root: Unknown): Unknown {
     }
 
     # Recursively process Arrays or Objects
+    # Note: Array.isArray() assumed as stdlib — typeof returns "Object" for arrays
     if (Array.isArray(obj)) {
       for (let i = 0; i < obj.length; i = i + 1) {
         obj[i] = walk(obj[i]);
       }
     } else {
-      val keys = Object.keys(obj); # Use Object.keys as per Spec
+      let keys = Object.keys(obj);
       for (let key of keys) {
         obj[key] = walk(obj[key]);
       }
@@ -367,9 +360,10 @@ Since your spec states that `val` and `Object.freeze()` are **shallow**, a circu
 
 To create a truly "safe" circular script, you would likely want a utility for **Deep Freeze** that understands cycles:
 
-```typescript
+```gpj
 function deepFreeze(root: Unknown): Unknown {
-  val seen: Set<Object> = Set.of(); //# GPJ Sets use deep equality
+  # let, not val — we need to mutate the set during traversal
+  let seen: Set<Object> = Set.of();
 
   function freeze(obj: Unknown): None {
     if (typeof obj != "Object" || obj == None || Object.isFrozen(obj)) {
@@ -487,12 +481,10 @@ val frozenNode = node; # Now immutable and frozen
 * **>** go ahead
 * Here is a sample **GPJ Test Suite** designed to exercise the new circularity logic, serialization patterns, and deep equality rules. This script demonstrates how the language handles the "true nature" of objects while maintaining strict type safety.
 
-```typescript
+```gpj
 #!/bin/env gpj
 # GPJ Test Suite: Circularity, Equality, and Serialization
-
-import * as JSON from "JSON";
-import * as Object from "Object";
+# Note: JSON and Object are built-in globals, not modules — no import needed
 
 # 1. Setup a circular graph using 'let' for bootstrapping
 let user = { name: "Alice", friend: None };
@@ -546,118 +538,12 @@ function process(input: Unknown) {
 }
 
 process(user);
-
 ```
 
 ### Analysis of the Test Results
-
-* **Recursive Equality:** Unlike standard JavaScript where `user == user2` would be `false` (reference check), GPJ correctly identifies them as the same "data".
-* **Safety Guards:** The `try/catch` block demonstrates that `Object.deepFreeze` correctly traversed the cycle and protected both `Alice` and `Bob` from mutation.
-* **Explicit Serialization:** By requiring `JSON.decycle`, GPJ avoids the "Magic/Hidden" behavior of other languages, making the data transformation explicit to the scripter.
-
-Here's a draft of "Standard Library" reference sheet for the `String` and `Array` methods
-to ensure they match this high-safety, no-coercion philosophy
-
-This consolidated specification incorporates our discussions on circularity, structural equality, and the refined standard library. This version serves as the baseline for **GPJ v0.0.1**.
-
-# GPJ Language Specification v0.0.1
-
-## 1. Core Philosophy
-
-GPJ (General Purpose JavaScript) is designed for scripting with three pillars: **Explicit Logic**, **Structural Integrity**, and **Zero Ambiguity**. It distills JavaScript's prototype-based nature into a strictly-evaluated, statically-checked environment.
-
----
-
-## 2. Type System & Values
-
-### 2.1 Unified Absence
-
-There is no `null` or `undefined`. The single value **`None`** represents the absence of a value.
-
-### 2.2 Equality and Circularity
-
-* **`==` and `!=**`: Perform **deep structural comparison**.
-* **Cycle Handling**: The interpreter tracks visited object-pairs during comparison. If a cycle is detected (the same pair is encountered again), the branch is treated as equal to prevent infinite recursion.
-* **Identity**: To check if two variables point to the same memory address, use `Object.is(a, b)`.
-
-### 2.3 Object Prototypes
-
-Objects are created via literals or `Object.create(proto)`. Structural types are inferred. Private properties are denoted by a leading underscore (e.g., `_secret`), making them lexically invisible outside the defining module.
-
----
-
-## 3. Declarations & Immutability
-
-* **`let`**: Mutable binding.
-* **`val`**: Immutable binding. Assigning an object to a `val` performs a **shallow freeze**.
-* **Bootstrapping Graphs**: Circular references must be wired using `let`. Once established, use `Object.deepFreeze(root)` to secure the entire graph.
-
----
-
-## 4. Syntax & Formatting (Parser-Enforced)
-
-To ensure readability, the parser rejects code that lacks standardized whitespace:
-
-* Mandatory spaces around binary operators: `a + b`, not `a+b`.
-* Mandatory spaces inside braces: `{ name: "Alice" }`.
-* **No Operator Precedence**: Different operators in one expression must be parenthesized: `(a * b) + c`.
-
----
-
-## 5. Revised Standard Library
-
-### 5.1 The JSON Module
-
-To handle JavaScript's "true nature" (graphs) in a tree-based format (JSON):
-
-* **`JSON.decycle(obj)`**: Replaces circular references with path strings: `{ "$ref": "$.friend" }`.
-* **`JSON.recycle(tree)`**: Restores a decycled object into a live circular graph.
-* **`JSON.stringify(obj)`**: Throws an error if cycles are present; enforces the use of `decycle`.
-
-### 5.2 Arrays & Strings
-
-Methods return **`None`** instead of failing silently or returning magic numbers like `-1`.
-
-* **`Array.pop()`**: Returns `T | None`.
-* **`Array.sort(comparator)`**: Comparator is **mandatory**. No default string-casting.
-* **`String.at(index)`**: Returns `String | None`.
-
-### 5.3 The Object Module
-
-* **`Object.deepFreeze(obj)`**: A cycle-aware recursive freeze utility.
-* **`Object.keys(obj)`**: Returns an array of own-property keys.
-
----
-
-## 6. Error Handling
-
-Structural `try/catch` allows matching errors by shape rather than just identity:
-
-```gpj
-try {
-    val data = fs.readFile("config.json");
-} catch (e: { code: "ENOENT" }) {
-    console.log("File missing.");
-} catch (e) {
-    console.log("Unknown error: " + e.message);
-}
-
-```
-
----
-
-## 7. Deliberate Omissions (The "Clean-up")
-
-* **No Implicit Coercion**: `1 + "1"` is a compile-time error. Use `1 + Cast.toNumber("1")`.
-* **No `this` context traps**: Methods cannot be detached from their objects. `val fn = obj.func` is invalid; use `val fn = () => obj.func()`.
-* **No Hoisting**: Variables and functions must be declared before use.
-
----
-
-### Implementation Note for the Transpiler
-
-The prototype `gpj` transpiler converts `a == b` into a call to a runtime helper `__gpj_equals(a, b)`, which implements the seen-pair registry for circular safety. `val` is transpiled to a `const` followed by an immediate `Object.freeze()`.
-
-**This concludes the v0.0.1 Specification.**
-
-
+* **Recursive Equality:** Unlike standard JavaScript where `user == user2` would be `false` (reference check),
+  GPJ correctly identifies them as the same "data".
+* **Safety Guards:** The `try/catch` block demonstrates that `Object.deepFreeze` correctly traversed
+  the cycle and protected both `Alice` and `Bob` from mutation.
+* **Explicit Serialization:** By requiring `JSON.decycle`, GPJ avoids the "Magic/Hidden" behavior
+  of other languages, making the data transformation explicit to the scripter.
