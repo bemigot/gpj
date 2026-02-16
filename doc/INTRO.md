@@ -21,14 +21,16 @@ let on    = false ?? true;  # false
 
 ### Comparison with other languages
 
-| GPJ                     | Python                          | Java                                  |
-|-------------------------|---------------------------------|---------------------------------------|
-| `x ?? default`          | `x if x is not None else default` | `Optional.ofNullable(x).orElse(default)` |
-| `None ?? 5`  →  `5`    | `None if None is not None...` → `5` | `Optional.empty().orElse(5)` → `5`   |
-| `0 ?? 10`  →  `0`      | `0 if 0 is not None...` → `0`  | `Optional.of(0).orElse(10)` → `0`    |
+| GPJ                     | Python                              | Java                                    |
+| :---------------------- | :---------------------------------- | :-------------------------------------- |
+| `x ?? default`          | `x if x is not None else default`   | `Optional.ofNullable(x).orElse(default)` |
+| `None ?? 5`  →  `5`     | `None if None is not None...` → `5` | `Optional.empty().orElse(5)` → `5`      |
+| `0 ?? 10`  →  `0`       | `0 if 0 is not None...` → `0`       | `Optional.of(0).orElse(10)` → `0`       |
 
 In Python you might also see `x or default`, but that has the same
 falsy-value problem as `||` — `0 or 10` gives `10`, not `0`.
+
+The `??` operator was introduced in JavaScript as part of the ECMAScript 2020 (ES11) standard.
 
 ## Chaining
 

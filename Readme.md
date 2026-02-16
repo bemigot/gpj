@@ -10,8 +10,7 @@ See [SPEC.md](SPEC.md) for the full language specification (working draft).
 
 ## Status
 
-Step 0 — "Hello, world" transpiler. The lexer, parser, and code generator handle expression statements,
-function calls, and literals. No type checking, no modules, no `val` freeze semantics yet.
+See [STATUS](STATUS.md) file.
 
 ## Running
 
