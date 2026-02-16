@@ -10,7 +10,7 @@ From now on every step is completed only after a reasonable number of tests are 
 #### Steps
 
 1. ~~`let`/`val` declarations with primitives (Number, String, Boolean, None)~~
-2. Arithmetic and string concatenation with type checking
+2. ~~Arithmetic and string concatenation with type checking~~
 3. `if`/`else`, `while`, `for`
 4. Functions (declaration and arrow)
 5. `==`/`!=` on primitives (emits `===`/`!==`), `??` (emits `??`)

@@ -106,8 +106,65 @@ function parse(tokens) {
     return test;
   }
 
+  // Binary operator token → operator string (no precedence — §8)
+  const BINARY_OPS = new Map([
+    [TokenType.OR,       "||"],
+    [TokenType.AND,      "&&"],
+    [TokenType.EQ,       "=="],
+    [TokenType.NEQ,      "!="],
+    [TokenType.LT,       "<"],
+    [TokenType.GT,       ">"],
+    [TokenType.LTE,      "<="],
+    [TokenType.GTE,      ">="],
+    [TokenType.PLUS,     "+"],
+    [TokenType.MINUS,    "-"],
+    [TokenType.STAR,     "*"],
+    [TokenType.SLASH,    "/"],
+    [TokenType.PERCENT,  "%"],
+    [TokenType.STARSTAR, "**"],
+  ]);
+
+  const COMPARISON_OPS = new Set(["==", "!=", "<", ">", "<=", ">="]);
+
   function parseBinaryOrLogical() {
-    return parseUnary();
+    let left = parseUnary();
+
+    const op = BINARY_OPS.get(peek().type);
+    if (op === undefined) return left;
+
+    // First binary operator — start a chain
+    advance();
+    let right = parseUnary();
+    left = { type: "BinaryExpression", operator: op, left, right };
+
+    // Comparison operators cannot chain at all (§8)
+    if (COMPARISON_OPS.has(op)) {
+      const next = BINARY_OPS.get(peek().type);
+      if (next !== undefined) {
+        throw new ParseError(
+          `Cannot follow ${op} with ${next} — use parentheses to clarify`,
+          peek()
+        );
+      }
+      return left;
+    }
+
+    // Same-operator chaining: left-associative
+    while (true) {
+      const next = BINARY_OPS.get(peek().type);
+      if (next === undefined) break;
+      if (next !== op) {
+        throw new ParseError(
+          `Cannot mix ${op} and ${next} without parentheses`,
+          peek()
+        );
+      }
+      advance();
+      right = parseUnary();
+      left = { type: "BinaryExpression", operator: op, left, right };
+    }
+
+    return left;
   }
 
   function parseUnary() {

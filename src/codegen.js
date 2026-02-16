@@ -1,5 +1,7 @@
 "use strict";
 
+const { GPJ_ADD_SRC, GPJ_ARITH_SRC } = require("./gpj_runtime");
+
 class CodegenError extends Error {
   constructor(message, node) {
     super(message);
@@ -18,10 +20,18 @@ function isPrimitiveLiteral(node) {
   return PRIMITIVE_LITERALS.has(node.type);
 }
 
+let usedHelpers;
+
 function generate(node) {
   switch (node.type) {
-    case "Program":
-      return node.body.map(generate).join("\n");
+    case "Program": {
+      usedHelpers = new Set();
+      const body = node.body.map(generate).join("\n");
+      const preamble = [];
+      if (usedHelpers.has("add")) preamble.push(GPJ_ADD_SRC);
+      if (usedHelpers.has("arith")) preamble.push(GPJ_ARITH_SRC);
+      return preamble.length ? preamble.join("\n") + "\n" + body : body;
+    }
 
     case "ExpressionStatement":
       return generate(node.expression) + ";";
@@ -123,6 +133,25 @@ function generate(node) {
 
     case "TypeofExpression":
       return `typeof ${generate(node.argument)}`;
+
+    case "BinaryExpression": {
+      const left = generate(node.left);
+      const right = generate(node.right);
+      switch (node.operator) {
+        case "+":
+          usedHelpers.add("add");
+          return `__gpj_add(${left}, ${right})`;
+        case "-": case "*": case "/": case "%": case "**":
+          usedHelpers.add("arith");
+          return `__gpj_arith(${JSON.stringify(node.operator)}, ${left}, ${right})`;
+        case "==":
+          return `(${left} === ${right})`;
+        case "!=":
+          return `(${left} !== ${right})`;
+        default:
+          return `(${left} ${node.operator} ${right})`;
+      }
+    }
 
     default:
       throw new CodegenError(`Unknown AST node type: ${node.type}`, node);
