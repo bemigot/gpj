@@ -12,7 +12,7 @@ GPJ is an interpreted, statically-typed language with JavaScript-inspired syntax
 
 The first `gpj` prototype is a GPJ-to-JavaScript transpiler — GPJ semantics map nearly directly to JS, with targeted deviations where JS got it wrong (e.g. structural equality, no implicit coercion, unified `None`). This keeps the implementation simple while the language design stabilizes.
 
-The `gpj` interpreter operates as a primitive interactive REPL and as a script runner. Scripts use `#` for end-of-line comments, so the standard shebang works. `#` inside string literals is not treated as a comment — the lexer only recognizes `#` as a comment start outside of quoted strings.
+The `gpj` interpreter operates as a script runner. Scripts use `#` for end-of-line comments, so the standard shebang works.
 
 ```
 #!/bin/env gpj
@@ -62,7 +62,7 @@ if (typeof x == "Number") {
 
 ```
 let a: Array<Number> = [1, 2, 3];
-let b = [1, 2, 3];              # inferred Array<Number>
+let b = [1, 2, 3];                           # inferred Array<Number>
 let c: Array<Number | String> = [1, "two"];  # union required for mixed
 ```
 
@@ -82,7 +82,7 @@ type Pair<K, V> = [K, V];
 let entry: Pair<String, Number> = ["x", 42];
 ```
 
-Tuples are immutable in length — elements cannot be added or removed. Element values can be reassigned if the binding is `let`. Tuples transpile to plain JS arrays.
+Tuples are immutable — elements cannot be added or removed. Element values can be reassigned if the binding is `let`. Tuples transpile to plain JS arrays.
 
 **Map<K, V>** is a typed key-value collection. Unlike objects-as-dictionaries, keys can be any type and lookup is based on deep equality (`==`). Maps maintain insertion order.
 
@@ -157,13 +157,13 @@ Static typing, checked at parse time before execution. Inference fills in omitte
 `typeof expr` returns a `String` at runtime indicating the type of the value:
 
 | Value type | `typeof` result |
-|---|---|
-| `Number` | `"Number"` |
-| `String` | `"String"` |
-| `Boolean` | `"Boolean"` |
-| `None` | `"None"` |
-| `Function` | `"Function"` |
-| Any object | `"Object"` |
+|------------|-----------------|
+| `Number`   | `"Number"`      |
+| `String`   | `"String"`      |
+| `Boolean`  | `"Boolean"`     |
+| `None`     | `"None"`        |
+| `Function` | `"Function"`    |
+| Any object | `"Object"`      |
 
 No JS quirks — `typeof None` is `"None"` (not `"object"`), arrays are `"Object"`.
 
@@ -528,7 +528,7 @@ Each imported name must match an `export`ed name in the target module — unmatc
 ```
 import foo from "./utils";            # ./utils.gpj or ./utils/module.gpj
 import * as h from "../lib/helpers";  # ../lib/helpers.gpj or ../lib/helpers/module.gpj
-import * as fs from "fs";            # stdlib
+import * as fs from "fs";             # stdlib
 ```
 
 ## 11. Standard Library
@@ -557,18 +557,18 @@ No DOM.
 
 ## 12. Deliberate Omissions
 
-| Feature | Rationale |
-|---|---|
-| BigInt, Symbol | Scope reduction |
-| async/await, Promises | No concurrency model |
-| `var`, hoisting | Lexical scoping only |
-| `undefined`, `null` | Single absent-value type `None`; no JS dual-null confusion |
-| Implicit coercion | Strict static types; interpreter halts on ambiguity |
-| `===` / `!==` | No coercion means `==` is already strict |
-| Bitwise operators | Niche; stdlib candidate |
-| `for...in` | Confusing semantics in JS; `Object.keys()` suffices |
-| `class`, `new`, `extends`, `super` | Explicit prototypes via `Object.create()` suffice |
-| `export default` | Named exports only; avoids ambiguity |
+| Feature                            | Rationale                                                  |
+|------------------------------------|------------------------------------------------------------|
+| BigInt, Symbol                     | Scope reduction                                            |
+| async/await, Promises              | No concurrency model                                       |
+| `var`, hoisting                    | Lexical scoping only                                       |
+| `undefined`, `null`                | Single absent-value type `None`; no JS dual-null confusion |
+| Implicit coercion                  | Strict static types; interpreter halts on ambiguity        |
+| `===` / `!==`                      | No coercion means `==` is already strict                   |
+| Bitwise operators                  | Niche; stdlib candidate                                    |
+| `for...in`                         | Confusing semantics in JS; `Object.keys()` suffices        |
+| `class`, `new`, `extends`, `super` | Explicit prototypes via `Object.create()` suffice          |
+| `export default`                   | Named exports only; avoids ambiguity                       |
 
 ## 13. Open Questions
 

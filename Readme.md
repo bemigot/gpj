@@ -25,11 +25,5 @@ Or add `bin/` to your `PATH` and use the shebang:
 
 ```
 export PATH=$PWD/bin:$PATH
-cat > test << EoT
-#!/usr/bin/env gpj
-console.log("Hello,", "CLI", "world!");
-EoT
-
-chmod +x test
-./test
+./example/hello.gpj
 ```
