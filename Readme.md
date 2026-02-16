@@ -1,5 +1,7 @@
 # GPJ
 
+[![Test](https://github.com/bemigot/gpj/actions/workflows/test.yml/badge.svg)](https://github.com/bemigot/gpj/actions/workflows/test.yml)
+
 *JavaScript, done right.*
 
 GPJ is an interpreted, statically-typed language with JavaScript-inspired syntax.
