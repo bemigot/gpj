@@ -1,0 +1,123 @@
+2026-02-14 12:04:46.33 As a competent language designer you have to draft a proposal for an interpreted JavaScript-inspired language. The proposal is meant for competent human reviewers, so it should be concise.
+Same as JavaScript: 
+- basic syntax, but ';' is mandatory, and \n in not a statement terminator.
+- same primitives: String, Number (FP64 equiv.), Boolean, undefined, null, Object (incl. Array, Function).
+What's different:
+- No BigInt, Symbol
+- No async/await
+- types are static, type declaration is optional
+2026-02-14 12:05:11.64 please stop
+2026-02-14 12:07:12.93 save your output to Draft-0.md
+2026-02-14 12:35:11.20 Add this (in an intelligent manner in relevant places):
+- no implicit type conversions ever. When interprter cannot unambiguosly interpret instruction - it stops
+- `gpj` is a primitive interactive REPL
+- '#' may be used for up-to-eol comment, so `#!/bin/env gpj` in the first line is a valid string, and _gpj_ is a real scripting language
+- _gpj_ provides `fs` module for filesystem I/O like NodeJS
+- there are `eval()` and process (tread) spawn/stop/etc. facility (to be elaborated later)
+- JSON query/building is in scope
+- basic UTF-8 String/text processing is in scope
+- language spec to be evolved/refined until v0.0.1 is reached
+2026-02-14 12:57:30.87 note the dropped stance on 'class' syntax-shugar and provide a relevant example (replace TODO)
+2026-02-14 12:59:48.07 are `new`, `extends` relevant in this case (no `class`)? Update as needed
+2026-02-14 13:04:13.43 only named exports allowed in gpj. Note and Update examples
+2026-02-14 13:11:03.61 why `export let PI: ..`? Why not `export val PI:` ? `val` is const
+2026-02-14 14:14:38.22 at this moment the only I/O ops are 
+- `console.log` , e.g `console.log(1, 2.3, "let's go")`. String templating is not yet spwcified.
+- module imports
+
+Add this to Draft
+2026-02-14 14:15:09.60 /clear
+
+2026-02-14 14:17:54.64 As an expert language designer and implementor review @Draft-0.md and note any language definition incosistencies or larger omissions
+2026-02-14 14:21:25.09 would you suggest dropping 'undefined' or 'null'? I'm in favor of dropping 'null'
+2026-02-14 14:23:30.08 ok, drop undefined. update the draft, replace null with None
+2026-02-14 14:25:22.15 relax mandatory ';' after {}. Whare else?
+2026-02-14 14:26:29.91 show me updated review notes
+2026-02-15 10:55:43.40 15. function return type is None for void functions. Does that mirror JS behaviour? Edit Draft if so.
+2026-02-15 11:04:24.59 I need your advice w.r.t. 2: my overall goal is making a "JavaScript" done right of sorts. Add this motto to Draft preamble, and advise me on this point
+2026-02-15 11:05:25.35 yes, add it to the spec
+2026-02-15 11:08:28.99 how would you address point 3, Object as a return type in the Vec2 example in light of "JS done right" ?
+2026-02-15 11:10:09.09 yes, apply all three
+2026-02-15 11:12:39.48 show me updated review notes, dropping fixed (hopefully #1 comment syntax) points
+2026-02-15 11:19:17.52 please also note: the first GPJ interpreter prototype will be a nearly strait-forward GPJ->JS transpiler (with very few deviations: e.g None != None). Update Draft and let's talk #9 Closure-over-mutable semantics
+2026-02-15 11:20:42.22 yes, add it
+2026-02-15 11:24:50.65 let's address console.log() implicit coersion like Java: all pre-defined Objects have toString() property...
+2026-02-15 11:26:50.66 save the updated review notes to file review-notes.md
+2026-02-15 11:28:58.32 /compact
+
+2026-02-15 14:46:21.16 pick top 5 easy problems from @review-notes.md
+2026-02-15 14:53:12.80 #13 - String templating - Ok, fix it. #10 Ok, except None != None. #11 catch binding - Ok. #9 - OK. Do please
+2026-02-15 14:54:41.20 Again, top 5 from easy to hard
+2026-02-15 14:57:45.43 #6, #4 - do whatever mimics JS true spirit. By the way: what was wrong 'for X in ..' ?
+2026-02-15 15:15:29.21 #9 — toString() - same as Java, all built-in Ojects have reasonable implementation (incl. Array). Custom T either implements override, or uses the closest ancestor's. Is it OK?
+2026-02-15 15:22:27.59 what is this "#private fields" business in JS? Briefly
+2026-02-15 15:24:11.77 let's make _ (undescore) a "true private"
+2026-02-15 15:28:17.76 Ok, let's do it this way. Note in Draft: this may change later, as we get real usage experience
+2026-02-15 15:31:46.64 #5 — No typeof / type reflection - from my Java experience I feel a bit uncomfortable without it. Does prototypal inheritance have a solution of its own? What is C# story w.r.t. to it?
+2026-02-15 15:34:25.00 yes, add typeof with narrowing
+2026-02-15 15:41:43.60 #8 - Operator precedence - there's none: `let x = 1 + 3 + 4` - syntax error. `let x = 1 + (2 + 3)`. Please add clarification: spaces around '+', '{', etc.  are mandatory. And let's discourage ';' after {} - issues a warning
+2026-02-15 15:46:38.11 drop note on "(`#private` syntax unavailable" . That's obvious
+2026-02-15 15:57:43.29 §7 - Module resolution - same as JS: import foo as bar from './x' - relative import (defined in ./x/module.gpj or ./x.gpj) - makes sense?
+2026-02-15 16:05:32.46 import {foo, bar} from "module" - don't like those {} - let's do it simple (and allow aliasing)
+import NumGPJ as np, Arrays as np.a from 'ml.calc';
+2026-02-15 16:06:15.08 yes, add that constraint
+2026-02-15 16:08:16.37 ESM-style only. No CommonJS. No default exports. -> ESM-style. No default exports. <- is that clear enough?
+2026-02-15 16:10:06.92 import { foo } from "./utils"; - no {} please
+2026-02-15 16:15:46.37 what other methods besides Object.length() and Object.create(Vec2) does JS Object have?
+2026-02-15 16:20:00.15 yes, spec a GPJ subset in §11 as soon as this design can be easily and sensibly transpiled to JS
+2026-02-15 16:22:34.76 shallow freeze is fine for now, note that as the current implementation limitation, to be reconsidered later
+2026-02-15 16:28:25.29 let's tackle remaining review items. It seems **2. Vec2 example has a type hole (§7)** is resolved. (it stays in review-notes for logging purposes) Correct? Mark it RESOLVED in that case
+2026-02-15 16:31:02.79 let's aim at Option 2. We may revisit it if transpiling goes badly
+2026-02-15 16:32:14.79 yes, tackle `this` binding. What are our options here?
+2026-02-15 16:34:44.37 Option C, add it
+2026-02-15 16:43:33.40 /clear
+
+2026-02-15 16:48:20.45 As a competent language designer and transpile-to-JS implementor, and having countering JavaScript's pitfalls in mind review Draft-0.md
+2026-02-15 16:51:30.19 save those to review-notes2.md with the current date-time stamp (e.g. 2026-02-15 20:51:33)
+2026-02-15 16:58:37.54 Let's reverse None != None desision and mark this point RESOLVED
+2026-02-15 17:02:15.56 let's address point 2, the import syntax - my intention is to use syntax like Python but only 1 form of it. Makes sense. "Named export" similarity mention may be dropped if that may confuse reader with JS background. Makes sense?
+2026-02-15 17:07:04.99 let's address point 3, Object.entries return type - I'd go with Pair<K, V> for now. Or maybe add both and make Pair<> subclass of Tuple2<T1, T2>
+2026-02-15 17:10:42.58 let's address point 4, operator precedence - relax () requirement for same (left-associative) operators. Update examples.
+2026-02-15 17:14:22.08 point 5, structural equality - what would be an option causing the least surprise for language user (not necessarily JS programmer)? Do the latter need a warning here?
+2026-02-15 17:15:44.65 yes, go ahead
+2026-02-15 17:21:55.22 let's address point 6, detached method detection - I do not understand this problem, so will not 95% of non-JS programmers. How can we tackle that?
+2026-02-15 17:26:11.71 let's address point 7, the _ privacy scoping - what would be a logical and safe thing to do here?
+2026-02-15 17:26:59.75 yes, go ahead
+2026-02-15 17:28:31.73 let's address point 8, destructuring - add this to Draft please
+2026-02-15 17:36:00.33 let's address point 9, string comparison limit - disallow == / < / > String comparison
+2026-02-15 17:36:54.06 disallow ordering, keep == and !=
+2026-02-15 18:09:22.79 let's address point 10, the Any type - what is TypeScript story here?
+2026-02-15 18:12:30.72 go with option 1, and leave remark on generics option for consideration post-v0.1
+2026-02-15 18:14:26.26 let's address point 11, Map and Set types - let's add them
+2026-02-15 18:26:12.77 let's address point 12, catch annotation soundness - I do not get this point. I'm used to Java: if catch(e: HttpError) fires, then e is of type HttpError. Do you follow me here?
+2026-02-15 18:30:01.73 yes, go ahead. Maybe add multiple catch(e: HttpError | IoError) ?
+2026-02-15 18:34:32.52 let's address point 13, val vs Object.freeze overlap - the sane choice would be freeze by default, correct?
+2026-02-15 18:35:14.97 yes, go ahead
+2026-02-15 18:41:58.51 let's address the minor issues: arrayA[1] is OK. `val fact2 = 'I mean # is totally OK in string literals.';  # comment starts here` Makes sense?
+2026-02-15 18:48:34.77 console.error - accepted, should go to STDERR I suppose. Does console.warn() somehow differ from console.log and console.error? Color maybe for Node CLIs?
+2026-02-15 18:49:06.49 yes, go ahead
+2026-02-15 18:52:24.32 HM inference locality - I guess that woild be a logical choice. Are there any deviations from that in other languages, besides JS?
+2026-02-15 18:53:38.30 yes, go ahead
+2026-02-15 19:07:19.81 /clear
+
+2026-02-15 19:11:07.78 As a competent language designer and transpile-to-JS implementor, and having countering JavaScript's pitfalls in mind review Draft-0.md
+Is it OK to move to impementing "Hello, world" transpiler and on? Present your review notes and save them as review2-result.md
+2026-02-15 19:17:04.46 elaborate on 5. module.gpj convention needs care in JS output resolution
+2026-02-15 19:55:02.66 /clear
+2026-02-15 20:15:27.65 As a competent language implementor and transpile-to-JS expert, read @SPEC.md and reviwer's notes @spec-review/review2-result.md
+Are you ready to impement "Hello, world" transpiler (step 0)?
+2026-02-15 20:18:37.12 lexer need not understand #! - it's enough to understand that's not a String literal. Agree?
+2026-02-15 20:19:26.34 Let's do it
+2026-02-15 20:28:45.45 Add Readme.md, desribe the project very briefly, point to SPEC.md. Add note on the current implementation stage and how one may run it, note Node requirement (and recommend LTS version 24)  without providng installation instruction
+2026-02-15 20:37:17.05 can we move gpj_runtime.js,  hello.gpj, and  test.gpj under src/ ? Or maybe src/test src/example ? Use your good judgement and update Readme.md accordingly
+2026-02-15 20:41:18.97 can you add (/bin/sh ?) wrapper, so #! in .gpj works from day 1?
+
+2026-02-16 16:16:45.60 as a competent programming language designer and an expert compile-to-JS implementor, read @SPEC.md and reviewer's notes in @spec-review/review3-Gemini.md, and reflect on the reviewer's notes. Are those points valid?
+2026-02-16 16:23:58.44 please wipe debateble content: "Points That Are Overstated or Wrong", fix decycle/recycle GPJ code, "No operator precedence" and "Parser-enforced whitespace" note (but leave a REPL relaxed rule consideration for the future)
+2026-02-16 16:33:41.28 which of the revised suggestions woukd you incorporate in SPEC, and which should go to stdlib implementation notes?
+2026-02-16 16:35:53.08 do as you say, add spec-review/stdlib-notes.md
+2026-02-16 16:46:55.80 we've done "hello world" step, please see @STATUS.md and either suggest amendments or pick the step 1 tasks and pre-requsites (GitHub actions)
+2026-02-16 16:58:30.87 yes go ahead, as soon as done - put DONE in STATUS.md in the right places
+2026-02-16 17:07:23.46 commit this
+2026-02-16 17:08:42.69 proceed with step 2
+2026-02-16 17:29:51.93 why precedence map? we've agreed on zero-precedence rules, as SPEC.md says
