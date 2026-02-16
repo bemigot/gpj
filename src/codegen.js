@@ -162,6 +162,8 @@ function generate(node) {
           return `(${left} === ${right})`;
         case "!=":
           return `(${left} !== ${right})`;
+        case "??":
+          return `(${left} ?? ${right})`;
         default:
           return `(${left} ${node.operator} ${right})`;
       }

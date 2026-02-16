@@ -48,6 +48,7 @@ const TokenType = {
   ARROW: "ARROW",
   SPREAD: "SPREAD",
   QUESTION: "QUESTION",
+  NULLISH: "NULLISH",
 
   // Operators
   PLUS: "PLUS",
@@ -263,7 +264,15 @@ function lex(source) {
       case "}": advance(); emit(TokenType.RBRACE, "}"); break;
       case "[": advance(); emit(TokenType.LBRACKET, "["); break;
       case "]": advance(); emit(TokenType.RBRACKET, "]"); break;
-      case "?": advance(); emit(TokenType.QUESTION, "?"); break;
+      case "?":
+        advance();
+        if (peek() === "?") {
+          advance();
+          emit(TokenType.NULLISH, "??");
+        } else {
+          emit(TokenType.QUESTION, "?");
+        }
+        break;
       case "+": advance(); emit(TokenType.PLUS, "+"); break;
       case "-": advance(); emit(TokenType.MINUS, "-"); break;
       case "*":

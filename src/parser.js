@@ -122,6 +122,7 @@ function parse(tokens) {
     [TokenType.SLASH,    "/"],
     [TokenType.PERCENT,  "%"],
     [TokenType.STARSTAR, "**"],
+    [TokenType.NULLISH,  "??"],
   ]);
 
   const COMPARISON_OPS = new Set(["==", "!=", "<", ">", "<=", ">="]);
