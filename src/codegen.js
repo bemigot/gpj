@@ -90,6 +90,20 @@ function generate(node) {
       return `function ${node.name}(${params}) ${body}`;
     }
 
+    case "ArrowFunction": {
+      const params = node.params.map((p) => p.name).join(", ");
+      if (node.body.type === "ExpressionBody") {
+        return `((${params}) => ${generate(node.body.expression)})`;
+      }
+      return `((${params}) => ${generateBlock(node.body)})`;
+    }
+
+    case "FunctionExpression": {
+      const params = node.params.map((p) => p.name).join(", ");
+      const body = generateBlock(node.body);
+      return `(function(${params}) ${body})`;
+    }
+
     case "ReturnStatement":
       if (node.argument) {
         return `return ${generate(node.argument)};`;

@@ -224,6 +224,41 @@ function parse(tokens) {
     return node;
   }
 
+  function tryParseArrowFunction() {
+    const saved = pos;
+    try {
+      advance(); // (
+      const params = [];
+      if (peek().type !== TokenType.RPAREN) {
+        params.push(parseParam());
+        while (peek().type === TokenType.COMMA) {
+          advance();
+          params.push(parseParam());
+        }
+      }
+      if (peek().type !== TokenType.RPAREN) { pos = saved; return null; }
+      advance(); // )
+      // Optional return type annotation
+      if (peek().type === TokenType.COLON) {
+        advance();
+        skipTypeAnnotation();
+      }
+      if (peek().type !== TokenType.ARROW) { pos = saved; return null; }
+      advance(); // =>
+      // Block body or expression body
+      let body;
+      if (peek().type === TokenType.LBRACE) {
+        body = parseBlock();
+      } else {
+        body = { type: "ExpressionBody", expression: parseExpression() };
+      }
+      return { type: "ArrowFunction", params, body };
+    } catch (e) {
+      pos = saved;
+      return null;
+    }
+  }
+
   function parsePrimary() {
     const tok = peek();
 
@@ -243,11 +278,29 @@ function parse(tokens) {
       case TokenType.IDENTIFIER:
         advance();
         return { type: "Identifier", name: tok.value };
-      case TokenType.LPAREN:
+      case TokenType.LPAREN: {
+        const arrow = tryParseArrowFunction();
+        if (arrow) return arrow;
         advance();
         const expr = parseExpression();
         expect(TokenType.RPAREN, "expected ')'");
         return expr;
+      }
+      case TokenType.FUNCTION: {
+        // Function expression (anonymous) — only if NOT at statement level
+        // Statement-level is handled in parseStatement, so if we get here
+        // it's an expression position.
+        advance(); // function
+        expect(TokenType.LPAREN, "expected '('");
+        const feParams = parseParamList();
+        expect(TokenType.RPAREN, "expected ')'");
+        if (peek().type === TokenType.COLON) {
+          advance();
+          skipTypeAnnotation();
+        }
+        const feBody = parseBlock();
+        return { type: "FunctionExpression", params: feParams, body: feBody };
+      }
       case TokenType.LBRACKET:
         return parseArrayLiteral();
       case TokenType.LBRACE:
