@@ -15,5 +15,5 @@
 6. DONE Arrays and `for...of`
 7. DONE Objects and structural types
 8. DONE `__gpj_eq` runtime (deep equality, seen-pair registry for circular refs)
-9. Modules (`import`/`export`)
+9. DONE Modules (`import`/`export`)
 10. Everything else

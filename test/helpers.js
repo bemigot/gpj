@@ -1,6 +1,9 @@
 "use strict";
 
 const { execFileSync } = require("child_process");
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
 const { lex } = require("../src/lexer");
 const { parse } = require("../src/parser");
 const { generate } = require("../src/codegen");
@@ -15,7 +18,7 @@ function runGPJ(source) {
 function execGPJ(source) {
   const { js } = runGPJ(source);
   try {
-    const stdout = execFileSync("node", ["-e", js], {
+    const stdout = execFileSync("node", ["--input-type=module", "-e", js], {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],  // without this, child stderr leaks to terminal (noisy on expected-error tests)
       timeout: 5000,
@@ -31,4 +34,41 @@ function execGPJ(source) {
   }
 }
 
-module.exports = { runGPJ, execGPJ };
+/**
+ * Run a multi-file module test. `files` is an object mapping relative paths
+ * to GPJ source strings. `main` is the key of the entry file.
+ * Each GPJ source is transpiled and written to a temp directory, then the
+ * main file is executed with `node`.
+ */
+function execGPJModules(files, main) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gpj-test-"));
+  try {
+    // package.json with "type": "module" so .js files are treated as ESM
+    fs.writeFileSync(path.join(tmpDir, "package.json"), '{"type":"module"}', "utf-8");
+    for (const [relPath, gpjSource] of Object.entries(files)) {
+      const { js } = runGPJ(gpjSource);
+      const outPath = path.join(tmpDir, relPath.replace(/\.gpj$/, ".js"));
+      const dir = path.dirname(outPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(outPath, js, "utf-8");
+    }
+    const mainPath = path.join(tmpDir, main.replace(/\.gpj$/, ".js"));
+    const stdout = execFileSync("node", [mainPath], {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+      timeout: 5000,
+      env: { ...process.env, FORCE_COLOR: "0" },
+    });
+    return { stdout, stderr: "", exitCode: 0 };
+  } catch (err) {
+    return {
+      stdout: err.stdout || "",
+      stderr: err.stderr || "",
+      exitCode: err.status ?? 1,
+    };
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+module.exports = { runGPJ, execGPJ, execGPJModules };

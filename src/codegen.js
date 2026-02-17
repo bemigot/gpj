@@ -27,12 +27,34 @@ function generate(node) {
     case "Program": {
       usedHelpers = new Set();
       const body = node.body.map(generate).join("\n");
-      const preamble = ['"use strict";'];
+      const preamble = [];
       if (usedHelpers.has("add")) preamble.push(GPJ_ADD_SRC);
       if (usedHelpers.has("arith")) preamble.push(GPJ_ARITH_SRC);
       if (usedHelpers.has("eq")) preamble.push(GPJ_EQ_SRC);
+      if (preamble.length === 0) return body;
       return preamble.join("\n") + "\n" + body;
     }
+
+    case "ImportDeclaration": {
+      const specs = node.specifiers;
+      // Relative paths need .js extension for Node ESM resolution
+      let sourcePath = node.source;
+      if ((sourcePath.startsWith("./") || sourcePath.startsWith("../")) &&
+          !sourcePath.endsWith(".js") && !sourcePath.endsWith(".mjs")) {
+        sourcePath += ".js";
+      }
+      if (specs.length === 1 && specs[0].type === "ImportNamespaceSpecifier") {
+        return `import * as ${specs[0].local} from ${JSON.stringify(sourcePath)};`;
+      }
+      const names = specs.map((s) => {
+        if (s.imported === s.local) return s.imported;
+        return `${s.imported} as ${s.local}`;
+      });
+      return `import { ${names.join(", ")} } from ${JSON.stringify(sourcePath)};`;
+    }
+
+    case "ExportDeclaration":
+      return `export ${generate(node.declaration)}`;
 
     case "ExpressionStatement":
       return generate(node.expression) + ";";

@@ -44,6 +44,10 @@ function parse(tokens) {
     const tok = peek();
 
     switch (tok.type) {
+      case TokenType.IMPORT:
+        return parseImportDeclaration();
+      case TokenType.EXPORT:
+        return parseExportDeclaration();
       case TokenType.LET:
       case TokenType.VAL:
         return parseVarDeclaration();
@@ -351,6 +355,58 @@ function parse(tokens) {
     }
     // Shorthand: { x } means { x: x }
     return { type: "Property", key: key.value, value: { type: "Identifier", name: key.value } };
+  }
+
+  function parseImportDeclaration() {
+    advance(); // import
+    const specifiers = [];
+
+    if (peek().type === TokenType.STAR) {
+      // import * as local from "path";
+      advance(); // *
+      expect(TokenType.AS, "expected 'as' after '*'");
+      const local = expect(TokenType.IDENTIFIER, "expected alias name");
+      specifiers.push({ type: "ImportNamespaceSpecifier", local: local.value });
+    } else {
+      // import foo, bar as b from "path";
+      specifiers.push(parseImportSpecifier());
+      while (peek().type === TokenType.COMMA) {
+        advance();
+        specifiers.push(parseImportSpecifier());
+      }
+    }
+
+    expect(TokenType.FROM, "expected 'from'");
+    const source = expect(TokenType.STRING, "expected module path string");
+    expect(TokenType.SEMICOLON);
+    return { type: "ImportDeclaration", specifiers, source: source.value };
+  }
+
+  function parseImportSpecifier() {
+    const imported = expect(TokenType.IDENTIFIER, "expected import name");
+    let local = imported.value;
+    if (peek().type === TokenType.AS) {
+      advance();
+      const alias = expect(TokenType.IDENTIFIER, "expected alias name");
+      local = alias.value;
+    }
+    return { type: "ImportSpecifier", imported: imported.value, local };
+  }
+
+  function parseExportDeclaration() {
+    advance(); // export
+    let declaration;
+    if (peek().type === TokenType.FUNCTION) {
+      declaration = parseFunctionDeclaration();
+    } else if (peek().type === TokenType.LET || peek().type === TokenType.VAL) {
+      declaration = parseVarDeclaration();
+    } else {
+      throw new ParseError(
+        "Expected function, let, or val after 'export'",
+        peek()
+      );
+    }
+    return { type: "ExportDeclaration", declaration };
   }
 
   function parseVarDeclaration() {
