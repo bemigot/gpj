@@ -74,9 +74,10 @@ Rules:
      ```
 
 5. Step workflow:
-   * Read STATUS.md to find the next step.
+   * Read STATUS.md to find the next step (first item after the `**TODO**` line).
    * Implement: lexer, parser, codegen changes as needed.
-   * Write tests in test/stepN-<topic>.test.js.
+   * Write tests in test/stepNN-<topic>.test.js (zero-padded step number).
    * Run `npm test`, fix until all pass.
    * Show diff summary + commit message for approval.
-   * After commit, mark step DONE in STATUS.md.
+   * After commit, move the `**TODO**` line down past the completed step(s).
+   * Suggest `/compact` after each commit to keep context window fresh.

@@ -7,22 +7,24 @@
 
 #### Steps
 
-1. DONE `let`/`val` declarations with primitives (Number, String, Boolean, None)
-2. DONE Arithmetic and string concatenation with type checking
-3. DONE `if`/`else`, `while`, `for`
-4. DONE Functions (declaration and arrow)
-5. DONE `==`/`!=` on primitives (emits `===`/`!==`), `??` (emits `??`)
-6. DONE Arrays and `for...of`
-7. DONE Objects and structural types
-8. DONE `__gpj_eq` runtime (deep equality, seen-pair registry for circular refs)
-9. DONE Modules (`import`/`export`)
-10. DONE Error handling (`try`/`catch`/`finally`, `throw`)
-11. DONE `do`/`while` loops
-12. DONE `switch`/`case`
-13. DONE Spread operator (`...`) and rest parameters
-14. DONE Type aliases (`type Foo = ...`) - parse and skip
-15. DONE Destructuring (object, array, nested, rest, rename)
-16. DONE Compound assignment (`+=`, `-=`, `*=`, `/=`, `%=`, `**=`)
+1. `let`/`val` declarations with primitives (Number, String, Boolean, None)
+2. Arithmetic and string concatenation with type checking
+3. `if`/`else`, `while`, `for`
+4. Functions (declaration and arrow)
+5. `==`/`!=` on primitives (emits `===`/`!==`), `??` (emits `??`)
+6. Arrays and `for...of`
+7. Objects and structural types
+8. `__gpj_eq` runtime (deep equality, seen-pair registry for circular refs)
+9. Modules (`import`/`export`)
+10. Error handling (`try`/`catch`/`finally`, `throw`)
+11. `do`/`while` loops
+12. `switch`/`case`
+13. Spread operator (`...`) and rest parameters
+14. Type aliases (`type Foo = ...`) - parse and skip
+15. Destructuring (object, array, nested, rest, rename)
+16. Compound assignment (`+=`, `-=`, `*=`, `/=`, `%=`, `**=`)
+**TODO**
 17. `for...of` with destructuring
 18. C-style `for` loops
-19. Everything else
+19. String templating (TBD)
+20. Everything else
