@@ -156,6 +156,20 @@ function generate(node) {
       return `for (${jsKind} ${node.variable} of ${generate(node.iterable)}) ${generateBlock(node.body)}`;
     }
 
+    case "ThrowStatement":
+      return `throw ${generate(node.argument)};`;
+
+    case "TryStatement": {
+      let code = `try ${generateBlock(node.block)}`;
+      if (node.handler) {
+        code += ` catch (${node.handler.param}) ${generateBlock(node.handler.body)}`;
+      }
+      if (node.finalizer) {
+        code += ` finally ${generateBlock(node.finalizer)}`;
+      }
+      return code;
+    }
+
     case "BreakStatement":
       return "break;";
 

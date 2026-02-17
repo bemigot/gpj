@@ -61,6 +61,10 @@ function parse(tokens) {
         return parseWhileStatement();
       case TokenType.FOR:
         return parseForStatement();
+      case TokenType.THROW:
+        return parseThrowStatement();
+      case TokenType.TRY:
+        return parseTryStatement();
       case TokenType.BREAK:
         advance();
         expect(TokenType.SEMICOLON);
@@ -537,6 +541,45 @@ function parse(tokens) {
       }
     }
     return { type: "IfStatement", test, consequent, alternate };
+  }
+
+  function parseThrowStatement() {
+    advance(); // throw
+    const argument = parseExpression();
+    expect(TokenType.SEMICOLON);
+    return { type: "ThrowStatement", argument };
+  }
+
+  function parseTryStatement() {
+    advance(); // try
+    const block = parseBlock();
+    let handler = null;
+    let finalizer = null;
+
+    if (peek().type === TokenType.CATCH) {
+      advance(); // catch
+      expect(TokenType.LPAREN, "expected '(' after catch");
+      const param = expect(TokenType.IDENTIFIER, "expected catch parameter name");
+      // Skip optional type annotation
+      if (peek().type === TokenType.COLON) {
+        advance();
+        skipTypeAnnotation();
+      }
+      expect(TokenType.RPAREN, "expected ')'");
+      const body = parseBlock();
+      handler = { param: param.value, body };
+    }
+
+    if (peek().type === TokenType.FINALLY) {
+      advance(); // finally
+      finalizer = parseBlock();
+    }
+
+    if (!handler && !finalizer) {
+      throw new ParseError("try must have catch or finally", peek());
+    }
+
+    return { type: "TryStatement", block, handler, finalizer };
   }
 
   function parseWhileStatement() {
