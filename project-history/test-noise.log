@@ -1,0 +1,23 @@
+> node --test test/step6-arrays.test.js
+
+  [eval]:3
+  a.push(4);
+    ^
+
+  TypeError: Cannot add property 3, object is not extensible
+      at Array.push (<anonymous>)
+      at [eval]:3:3
+      at runScriptInThisContext (node:internal/vm:219:10)
+      at node:internal/process/execution:451:12
+      at [eval]-wrapper:6:24
+      at runScriptInContext (node:internal/process/execution:449:60)
+      at evalFunction (node:internal/process/execution:283:30)
+      at evalTypeScript (node:internal/process/execution:295:3)
+      at node:internal/main/eval_string:71:3
+
+● Those are the expected TypeErrors from the val freeze tests — the tests pass fine, but the child process stderr leaks
+  to the terminal. It's the same noise you see from step 2's TypeError tests.
+
+  The fix is to explicitly pipe stderr in the test helper so it's captured silently.
+
+claude --resume 29e1c781-8949-453c-9a93-f39be2029de5

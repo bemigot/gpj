@@ -1,7 +1,5 @@
 ### Implementation order after "Hello, world"
 
-From now on every step is completed only after a reasonable number of tests are checked in.
-
 #### Step 0.5 — Test infrastructure (prerequisite for all steps)
 - [x] `package.json` with `node --test` as test runner (no dependencies)
 - [x] Test harness: run `.gpj` files, assert stdout/stderr/exit code
