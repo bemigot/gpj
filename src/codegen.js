@@ -26,7 +26,7 @@ function generate(node) {
   switch (node.type) {
     case "Program": {
       usedHelpers = new Set();
-      const body = node.body.map(generate).join("\n");
+      const body = node.body.map(generate).filter((s) => s !== "").join("\n");
       const preamble = [];
       if (usedHelpers.has("add")) preamble.push(GPJ_ADD_SRC);
       if (usedHelpers.has("arith")) preamble.push(GPJ_ARITH_SRC);
@@ -55,6 +55,16 @@ function generate(node) {
 
     case "ExportDeclaration":
       return `export ${generate(node.declaration)}`;
+
+    case "TypeAlias":
+      return "";
+
+    case "DestructureDeclaration": {
+      const jsKind = node.kind === "val" ? "const" : "let";
+      const pattern = generatePattern(node.pattern);
+      const init = generate(node.init);
+      return `${jsKind} ${pattern} = ${init};`;
+    }
 
     case "ExpressionStatement":
       return generate(node.expression) + ";";
@@ -240,6 +250,31 @@ function generateBlock(block) {
   const lines = block.body.map(generate);
   if (lines.length === 0) return "{}";
   return `{\n${lines.map((l) => "  " + l).join("\n")}\n}`;
+}
+
+function generatePattern(node) {
+  switch (node.type) {
+    case "ObjectPattern": {
+      const props = node.properties.map((p) => {
+        if (p.type === "RestElement") return `...${p.name}`;
+        if (p.value) return `${p.key}: ${generatePattern(p.value)}`;
+        if (p.alias) return `${p.key}: ${p.alias}`;
+        return p.key;
+      });
+      return `{ ${props.join(", ")} }`;
+    }
+    case "ArrayPattern": {
+      const elems = node.elements.map((e) => {
+        if (e.type === "RestElement") return `...${e.name}`;
+        return generatePattern(e);
+      });
+      return `[${elems.join(", ")}]`;
+    }
+    case "PatternIdentifier":
+      return node.name;
+    default:
+      throw new CodegenError(`Unknown pattern type: ${node.type}`, node);
+  }
 }
 
 module.exports = { generate, CodegenError };

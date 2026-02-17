@@ -20,5 +20,6 @@
 11. DONE `do`/`while` loops
 12. DONE `switch`/`case`
 13. DONE Spread operator (`...`) and rest parameters
-14. Type aliases (`type Foo = ...`) — parse and skip
-15. Everything else
+14. DONE Type aliases (`type Foo = ...`) - parse and skip
+15. DONE Destructuring (object, array, nested, rest, rename)
+16. Everything else

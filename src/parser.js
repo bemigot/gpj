@@ -48,6 +48,8 @@ function parse(tokens) {
         return parseImportDeclaration();
       case TokenType.EXPORT:
         return parseExportDeclaration();
+      case TokenType.TYPE:
+        return parseTypeAlias();
       case TokenType.LET:
       case TokenType.VAL:
         return parseVarDeclaration();
@@ -437,8 +439,46 @@ function parse(tokens) {
     return { type: "ExportDeclaration", declaration };
   }
 
+  function parseTypeAlias() {
+    advance(); // type
+    expect(TokenType.IDENTIFIER, "expected type name");
+    expect(TokenType.ASSIGN, "expected '='");
+    // Skip the type expression until semicolon
+    skipTypeAnnotation();
+    expect(TokenType.SEMICOLON);
+    return { type: "TypeAlias" };
+  }
+
   function parseVarDeclaration() {
     const kind = advance(); // let or val
+
+    // Destructuring: let {x, y} = ... or let [a, b] = ...
+    if (peek().type === TokenType.LBRACE) {
+      const pattern = parseObjectPattern();
+      // Skip type annotation
+      if (peek().type === TokenType.COLON) {
+        advance();
+        skipTypeAnnotation();
+      }
+      expect(TokenType.ASSIGN, "expected '=' in declaration");
+      const init = parseExpression();
+      expect(TokenType.SEMICOLON);
+      return { type: "DestructureDeclaration", kind: kind.value, pattern, init };
+    }
+
+    if (peek().type === TokenType.LBRACKET) {
+      const pattern = parseArrayPattern();
+      // Skip type annotation
+      if (peek().type === TokenType.COLON) {
+        advance();
+        skipTypeAnnotation();
+      }
+      expect(TokenType.ASSIGN, "expected '=' in declaration");
+      const init = parseExpression();
+      expect(TokenType.SEMICOLON);
+      return { type: "DestructureDeclaration", kind: kind.value, pattern, init };
+    }
+
     const name = expect(TokenType.IDENTIFIER, "expected variable name");
     // Skip type annotation for now
     if (peek().type === TokenType.COLON) {
@@ -454,6 +494,74 @@ function parse(tokens) {
       name: name.value,
       init,
     };
+  }
+
+  function parseObjectPattern() {
+    advance(); // {
+    const properties = [];
+    if (peek().type !== TokenType.RBRACE) {
+      properties.push(parsePatternProperty());
+      while (peek().type === TokenType.COMMA) {
+        advance();
+        properties.push(parsePatternProperty());
+      }
+    }
+    expect(TokenType.RBRACE, "expected '}'");
+    return { type: "ObjectPattern", properties };
+  }
+
+  function parsePatternProperty() {
+    if (peek().type === TokenType.SPREAD) {
+      advance();
+      const name = expect(TokenType.IDENTIFIER, "expected identifier after '...'");
+      return { type: "RestElement", name: name.value };
+    }
+    const key = expect(TokenType.IDENTIFIER, "expected property name");
+    if (peek().type === TokenType.COLON) {
+      advance();
+      // Could be a rename (identifier) or nested pattern ({...} or [...])
+      if (peek().type === TokenType.LBRACE) {
+        const pattern = parseObjectPattern();
+        return { type: "PatternProperty", key: key.value, value: pattern };
+      }
+      if (peek().type === TokenType.LBRACKET) {
+        const pattern = parseArrayPattern();
+        return { type: "PatternProperty", key: key.value, value: pattern };
+      }
+      const alias = expect(TokenType.IDENTIFIER, "expected alias name");
+      return { type: "PatternProperty", key: key.value, alias: alias.value };
+    }
+    return { type: "PatternProperty", key: key.value };
+  }
+
+  function parseArrayPattern() {
+    advance(); // [
+    const elements = [];
+    if (peek().type !== TokenType.RBRACKET) {
+      elements.push(parsePatternElement());
+      while (peek().type === TokenType.COMMA) {
+        advance();
+        elements.push(parsePatternElement());
+      }
+    }
+    expect(TokenType.RBRACKET, "expected ']'");
+    return { type: "ArrayPattern", elements };
+  }
+
+  function parsePatternElement() {
+    if (peek().type === TokenType.SPREAD) {
+      advance();
+      const name = expect(TokenType.IDENTIFIER, "expected identifier after '...'");
+      return { type: "RestElement", name: name.value };
+    }
+    if (peek().type === TokenType.LBRACE) {
+      return parseObjectPattern();
+    }
+    if (peek().type === TokenType.LBRACKET) {
+      return parseArrayPattern();
+    }
+    const name = expect(TokenType.IDENTIFIER, "expected variable name");
+    return { type: "PatternIdentifier", name: name.value };
   }
 
   function skipTypeAnnotation() {
