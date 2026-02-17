@@ -279,6 +279,9 @@ function parse(tokens) {
       case TokenType.IDENTIFIER:
         advance();
         return { type: "Identifier", name: tok.value };
+      case TokenType.THIS:
+        advance();
+        return { type: "ThisExpression" };
       case TokenType.LPAREN: {
         const arrow = tryParseArrowFunction();
         if (arrow) return arrow;
@@ -372,24 +375,34 @@ function parse(tokens) {
   function skipTypeAnnotation() {
     // Consume type tokens until we hit something that's clearly not a type.
     // This is a rough skip — enough to get past `Number`, `String`,
-    // `Array<Number>`, `{x: Number}`, `Number | String`, `Number?`, etc.
-    let depth = 0;
+    // `Array<Number>`, `{x: Number}`, `[Number, String]`, `Number?`, etc.
+    //
+    // Delimiters (<>, {}, []) are depth-tracked so their inner tokens
+    // (including `,` and `:`) are consumed only inside matched pairs.
+    // At the top level only identifiers and `?` are consumed — this
+    // prevents eating `,` between function params or `{` of a block body.
+    let angleDepth = 0;
+    let braceDepth = 0;
+    let bracketDepth = 0;
+    let count = 0; // top-level type tokens consumed
     while (true) {
       const t = peek();
-      if (t.type === TokenType.LT) { depth++; advance(); continue; }
-      if (t.type === TokenType.GT && depth > 0) { depth--; advance(); continue; }
-      if (depth > 0) { advance(); continue; }
-      if (
-        t.type === TokenType.IDENTIFIER ||
-        t.type === TokenType.QUESTION ||
-        t.type === TokenType.LBRACKET ||
-        t.type === TokenType.RBRACKET ||
-        t.type === TokenType.LBRACE ||
-        t.type === TokenType.RBRACE ||
-        t.type === TokenType.COLON ||
-        t.type === TokenType.COMMA
-      ) {
+      // Angle brackets: Array<Number>, Map<K, V>
+      if (t.type === TokenType.LT) { angleDepth++; advance(); count++; continue; }
+      if (t.type === TokenType.GT && angleDepth > 0) { angleDepth--; advance(); continue; }
+      if (angleDepth > 0) { advance(); continue; }
+      // Braces: structural types {x: Number} — only open at start or nested
+      if (t.type === TokenType.LBRACE && (braceDepth > 0 || count === 0)) { braceDepth++; advance(); count++; continue; }
+      if (t.type === TokenType.RBRACE && braceDepth > 0) { braceDepth--; advance(); continue; }
+      if (braceDepth > 0) { advance(); continue; }
+      // Brackets: tuple types [Number, String]
+      if (t.type === TokenType.LBRACKET) { bracketDepth++; advance(); count++; continue; }
+      if (t.type === TokenType.RBRACKET && bracketDepth > 0) { bracketDepth--; advance(); continue; }
+      if (bracketDepth > 0) { advance(); continue; }
+      // Top-level: identifiers (type names) and ? (nullable)
+      if (t.type === TokenType.IDENTIFIER || t.type === TokenType.QUESTION) {
         advance();
+        count++;
         continue;
       }
       break;

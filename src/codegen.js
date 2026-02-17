@@ -51,6 +51,9 @@ function generate(node) {
     case "Identifier":
       return node.name;
 
+    case "ThisExpression":
+      return "this";
+
     case "NumberLiteral":
       return node.value;
 
