@@ -17,8 +17,8 @@
 8. DONE `__gpj_eq` runtime (deep equality, seen-pair registry for circular refs)
 9. DONE Modules (`import`/`export`)
 10. DONE Error handling (`try`/`catch`/`finally`, `throw`)
-11. `do`/`while` loops
-12. `switch`/`case`
+11. DONE `do`/`while` loops
+12. DONE `switch`/`case`
 13. Spread operator (`...`)
 14. Type aliases (`type Foo = ...`) — parse and skip
 15. Everything else

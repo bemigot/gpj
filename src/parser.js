@@ -65,6 +65,10 @@ function parse(tokens) {
         return parseThrowStatement();
       case TokenType.TRY:
         return parseTryStatement();
+      case TokenType.DO:
+        return parseDoWhileStatement();
+      case TokenType.SWITCH:
+        return parseSwitchStatement();
       case TokenType.BREAK:
         advance();
         expect(TokenType.SEMICOLON);
@@ -589,6 +593,60 @@ function parse(tokens) {
     expect(TokenType.RPAREN, "expected ')'");
     const body = parseBlock();
     return { type: "WhileStatement", test, body };
+  }
+
+  function parseDoWhileStatement() {
+    advance(); // do
+    const body = parseBlock();
+    expect(TokenType.WHILE, "expected 'while' after do block");
+    expect(TokenType.LPAREN, "expected '('");
+    const test = parseExpression();
+    expect(TokenType.RPAREN, "expected ')'");
+    expect(TokenType.SEMICOLON);
+    return { type: "DoWhileStatement", body, test };
+  }
+
+  function parseSwitchStatement() {
+    advance(); // switch
+    expect(TokenType.LPAREN, "expected '('");
+    const discriminant = parseExpression();
+    expect(TokenType.RPAREN, "expected ')'");
+    expect(TokenType.LBRACE, "expected '{'");
+
+    const cases = [];
+    while (peek().type !== TokenType.RBRACE) {
+      if (peek().type === TokenType.CASE) {
+        advance(); // case
+        const test = parseExpression();
+        expect(TokenType.COLON, "expected ':' after case value");
+        const body = [];
+        while (
+          peek().type !== TokenType.CASE &&
+          peek().type !== TokenType.RBRACE &&
+          !(peek().type === TokenType.IDENTIFIER && peek().value === "default")
+        ) {
+          body.push(parseStatement());
+        }
+        cases.push({ type: "SwitchCase", test, body });
+      } else if (peek().type === TokenType.IDENTIFIER && peek().value === "default") {
+        advance(); // default
+        expect(TokenType.COLON, "expected ':' after default");
+        const body = [];
+        while (
+          peek().type !== TokenType.CASE &&
+          peek().type !== TokenType.RBRACE &&
+          !(peek().type === TokenType.IDENTIFIER && peek().value === "default")
+        ) {
+          body.push(parseStatement());
+        }
+        cases.push({ type: "SwitchDefault", body });
+      } else {
+        throw new ParseError("Expected 'case' or 'default' in switch body", peek());
+      }
+    }
+
+    expect(TokenType.RBRACE, "expected '}'");
+    return { type: "SwitchStatement", discriminant, cases };
   }
 
   function parseForStatement() {

@@ -151,6 +151,22 @@ function generate(node) {
     case "WhileStatement":
       return `while (${generate(node.test)}) ${generateBlock(node.body)}`;
 
+    case "DoWhileStatement":
+      return `do ${generateBlock(node.body)} while (${generate(node.test)});`;
+
+    case "SwitchStatement": {
+      const cases = node.cases.map((c) => {
+        if (c.type === "SwitchDefault") {
+          const body = c.body.map(generate).map((l) => "    " + l).join("\n");
+          return `  default:\n${body}`;
+        }
+        const test = generate(c.test);
+        const body = c.body.map(generate).map((l) => "    " + l).join("\n");
+        return `  case ${test}:\n${body}`;
+      });
+      return `switch (${generate(node.discriminant)}) {\n${cases.join("\n")}\n}`;
+    }
+
     case "ForOfStatement": {
       const jsKind = node.kind === "val" ? "const" : "let";
       return `for (${jsKind} ${node.variable} of ${generate(node.iterable)}) ${generateBlock(node.body)}`;
