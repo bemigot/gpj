@@ -37,14 +37,14 @@ describe("step 5 — == / != / ??", () => {
     assert.equal(stdout, "false\n");
   });
 
-  it("== emits ===", () => {
+  it("== emits __gpj_eq", () => {
     const { js } = runGPJ(`console.log(1 == 1);`);
-    assert.ok(js.includes("==="), `expected === in: ${js}`);
+    assert.ok(js.includes("__gpj_eq("), `expected __gpj_eq in: ${js}`);
   });
 
-  it("!= emits !==", () => {
+  it("!= emits !__gpj_eq", () => {
     const { js } = runGPJ(`console.log(1 != 2);`);
-    assert.ok(js.includes("!=="), `expected !== in: ${js}`);
+    assert.ok(js.includes("!__gpj_eq("), `expected !__gpj_eq in: ${js}`);
   });
 
   // --- nullish coalescing ---

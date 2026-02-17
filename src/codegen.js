@@ -1,6 +1,6 @@
 "use strict";
 
-const { GPJ_ADD_SRC, GPJ_ARITH_SRC } = require("./gpj_runtime");
+const { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC } = require("./gpj_runtime");
 
 class CodegenError extends Error {
   constructor(message, node) {
@@ -30,6 +30,7 @@ function generate(node) {
       const preamble = ['"use strict";'];
       if (usedHelpers.has("add")) preamble.push(GPJ_ADD_SRC);
       if (usedHelpers.has("arith")) preamble.push(GPJ_ARITH_SRC);
+      if (usedHelpers.has("eq")) preamble.push(GPJ_EQ_SRC);
       return preamble.join("\n") + "\n" + body;
     }
 
@@ -162,9 +163,11 @@ function generate(node) {
           usedHelpers.add("arith");
           return `__gpj_arith(${JSON.stringify(node.operator)}, ${left}, ${right})`;
         case "==":
-          return `(${left} === ${right})`;
+          usedHelpers.add("eq");
+          return `__gpj_eq(${left}, ${right})`;
         case "!=":
-          return `(${left} !== ${right})`;
+          usedHelpers.add("eq");
+          return `!__gpj_eq(${left}, ${right})`;
         case "??":
           return `(${left} ?? ${right})`;
         default:
