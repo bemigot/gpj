@@ -221,10 +221,10 @@ function parse(tokens) {
         advance();
         const args = [];
         if (peek().type !== TokenType.RPAREN) {
-          args.push(parseExpression());
+          args.push(parseArgument());
           while (peek().type === TokenType.COMMA) {
             advance();
-            args.push(parseExpression());
+            args.push(parseArgument());
           }
         }
         expect(TokenType.RPAREN, "expected ')'");
@@ -330,14 +330,30 @@ function parse(tokens) {
     advance(); // [
     const elements = [];
     if (peek().type !== TokenType.RBRACKET) {
-      elements.push(parseExpression());
+      elements.push(parseArrayElement());
       while (peek().type === TokenType.COMMA) {
         advance();
-        elements.push(parseExpression());
+        elements.push(parseArrayElement());
       }
     }
     expect(TokenType.RBRACKET, "expected ']'");
     return { type: "ArrayLiteral", elements };
+  }
+
+  function parseArrayElement() {
+    if (peek().type === TokenType.SPREAD) {
+      advance();
+      return { type: "SpreadElement", argument: parseExpression() };
+    }
+    return parseExpression();
+  }
+
+  function parseArgument() {
+    if (peek().type === TokenType.SPREAD) {
+      advance();
+      return { type: "SpreadElement", argument: parseExpression() };
+    }
+    return parseExpression();
   }
 
   function parseObjectLiteral() {
@@ -355,6 +371,10 @@ function parse(tokens) {
   }
 
   function parseProperty() {
+    if (peek().type === TokenType.SPREAD) {
+      advance();
+      return { type: "SpreadElement", argument: parseExpression() };
+    }
     const key = expect(TokenType.IDENTIFIER, "expected property name");
     if (peek().type === TokenType.COLON) {
       advance();
@@ -500,6 +520,15 @@ function parse(tokens) {
   }
 
   function parseParam() {
+    if (peek().type === TokenType.SPREAD) {
+      advance();
+      const name = expect(TokenType.IDENTIFIER, "expected parameter name after '...'");
+      if (peek().type === TokenType.COLON) {
+        advance();
+        skipTypeAnnotation();
+      }
+      return { name: name.value, rest: true };
+    }
     const name = expect(TokenType.IDENTIFIER, "expected parameter name");
     if (peek().type === TokenType.COLON) {
       advance();

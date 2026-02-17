@@ -19,6 +19,6 @@
 10. DONE Error handling (`try`/`catch`/`finally`, `throw`)
 11. DONE `do`/`while` loops
 12. DONE `switch`/`case`
-13. Spread operator (`...`)
+13. DONE Spread operator (`...`) and rest parameters
 14. Type aliases (`type Foo = ...`) — parse and skip
 15. Everything else

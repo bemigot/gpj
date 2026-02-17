@@ -89,11 +89,15 @@ function generate(node) {
     case "NoneLiteral":
       return "null";
 
+    case "SpreadElement":
+      return `...${generate(node.argument)}`;
+
     case "ArrayLiteral":
       return `[${node.elements.map(generate).join(", ")}]`;
 
     case "ObjectLiteral": {
       const props = node.properties.map((p) => {
+        if (p.type === "SpreadElement") return generate(p);
         const key = p.key;
         const val = generate(p.value);
         return `${key}: ${val}`;
@@ -111,13 +115,13 @@ function generate(node) {
     }
 
     case "FunctionDeclaration": {
-      const params = node.params.map((p) => p.name).join(", ");
+      const params = node.params.map((p) => p.rest ? `...${p.name}` : p.name).join(", ");
       const body = generateBlock(node.body);
       return `function ${node.name}(${params}) ${body}`;
     }
 
     case "ArrowFunction": {
-      const params = node.params.map((p) => p.name).join(", ");
+      const params = node.params.map((p) => p.rest ? `...${p.name}` : p.name).join(", ");
       if (node.body.type === "ExpressionBody") {
         return `((${params}) => ${generate(node.body.expression)})`;
       }
@@ -125,7 +129,7 @@ function generate(node) {
     }
 
     case "FunctionExpression": {
-      const params = node.params.map((p) => p.name).join(", ");
+      const params = node.params.map((p) => p.rest ? `...${p.name}` : p.name).join(", ");
       const body = generateBlock(node.body);
       return `(function(${params}) ${body})`;
     }
