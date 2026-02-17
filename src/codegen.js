@@ -209,6 +209,23 @@ function generate(node) {
     case "AssignmentExpression":
       return `${generate(node.left)} = ${generate(node.right)}`;
 
+    case "CompoundAssignment": {
+      const left = generate(node.left);
+      const right = generate(node.right);
+      switch (node.operator) {
+        case "+=":
+          usedHelpers.add("add");
+          return `${left} = __gpj_add(${left}, ${right})`;
+        case "-=": case "*=": case "/=": case "%=": case "**=": {
+          usedHelpers.add("arith");
+          const binOp = node.operator.slice(0, -1); // strip trailing =
+          return `${left} = __gpj_arith(${JSON.stringify(binOp)}, ${left}, ${right})`;
+        }
+        default:
+          throw new CodegenError(`Unknown compound operator: ${node.operator}`, node);
+      }
+    }
+
     case "TernaryExpression":
       return `(${generate(node.test)} ? ${generate(node.consequent)} : ${generate(node.alternate)})`;
 

@@ -94,6 +94,15 @@ function parse(tokens) {
     return parseAssignment();
   }
 
+  const COMPOUND_ASSIGN_OPS = new Map([
+    [TokenType.PLUS_ASSIGN, "+="],
+    [TokenType.MINUS_ASSIGN, "-="],
+    [TokenType.STAR_ASSIGN, "*="],
+    [TokenType.SLASH_ASSIGN, "/="],
+    [TokenType.PERCENT_ASSIGN, "%="],
+    [TokenType.STARSTAR_ASSIGN, "**="],
+  ]);
+
   function parseAssignment() {
     const left = parseTernary();
 
@@ -101,6 +110,13 @@ function parse(tokens) {
       advance();
       const right = parseExpression();
       return { type: "AssignmentExpression", left, right };
+    }
+
+    const compoundOp = COMPOUND_ASSIGN_OPS.get(peek().type);
+    if (compoundOp !== undefined) {
+      advance();
+      const right = parseExpression();
+      return { type: "CompoundAssignment", operator: compoundOp, left, right };
     }
 
     return left;

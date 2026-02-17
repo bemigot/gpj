@@ -22,4 +22,7 @@
 13. DONE Spread operator (`...`) and rest parameters
 14. DONE Type aliases (`type Foo = ...`) - parse and skip
 15. DONE Destructuring (object, array, nested, rest, rename)
-16. Everything else
+16. DONE Compound assignment (`+=`, `-=`, `*=`, `/=`, `%=`, `**=`)
+17. `for...of` with destructuring
+18. C-style `for` loops
+19. Everything else

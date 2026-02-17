@@ -259,6 +259,12 @@ val frozen = parent;         # shallow-freezes parent; child remains mutable
 
 No `var`. Lexical scoping only. No hoisting.
 
+### 4.2 Compound Assignment
+
+`+=`, `-=`, `*=`, `/=`, `%=`, `**=` -- same as JS. Subject to the same
+type rules as their binary counterparts (`+=` requires both sides to be
+Number or both String, arithmetic operators require Number).
+
 ### 4.1 Destructuring
 
 Destructuring extracts values from objects, arrays, and tuples into bindings. Works with both `let` and `val`.

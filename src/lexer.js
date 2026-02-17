@@ -68,6 +68,12 @@ const TokenType = {
   OR: "OR",
   NOT: "NOT",
   ASSIGN: "ASSIGN",
+  PLUS_ASSIGN: "PLUS_ASSIGN",
+  MINUS_ASSIGN: "MINUS_ASSIGN",
+  STAR_ASSIGN: "STAR_ASSIGN",
+  SLASH_ASSIGN: "SLASH_ASSIGN",
+  PERCENT_ASSIGN: "PERCENT_ASSIGN",
+  STARSTAR_ASSIGN: "STARSTAR_ASSIGN",
 
   // Special
   EOF: "EOF",
@@ -275,19 +281,39 @@ function lex(source) {
           emit(TokenType.QUESTION, "?");
         }
         break;
-      case "+": advance(); emit(TokenType.PLUS, "+"); break;
-      case "-": advance(); emit(TokenType.MINUS, "-"); break;
+      case "+":
+        advance();
+        if (peek() === "=") { advance(); emit(TokenType.PLUS_ASSIGN, "+="); }
+        else { emit(TokenType.PLUS, "+"); }
+        break;
+      case "-":
+        advance();
+        if (peek() === "=") { advance(); emit(TokenType.MINUS_ASSIGN, "-="); }
+        else { emit(TokenType.MINUS, "-"); }
+        break;
       case "*":
         advance();
         if (peek() === "*") {
           advance();
-          emit(TokenType.STARSTAR, "**");
+          if (peek() === "=") { advance(); emit(TokenType.STARSTAR_ASSIGN, "**="); }
+          else { emit(TokenType.STARSTAR, "**"); }
+        } else if (peek() === "=") {
+          advance();
+          emit(TokenType.STAR_ASSIGN, "*=");
         } else {
           emit(TokenType.STAR, "*");
         }
         break;
-      case "/": advance(); emit(TokenType.SLASH, "/"); break;
-      case "%": advance(); emit(TokenType.PERCENT, "%"); break;
+      case "/":
+        advance();
+        if (peek() === "=") { advance(); emit(TokenType.SLASH_ASSIGN, "/="); }
+        else { emit(TokenType.SLASH, "/"); }
+        break;
+      case "%":
+        advance();
+        if (peek() === "=") { advance(); emit(TokenType.PERCENT_ASSIGN, "%="); }
+        else { emit(TokenType.PERCENT, "%"); }
+        break;
       case "=":
         advance();
         if (peek() === "=") {
