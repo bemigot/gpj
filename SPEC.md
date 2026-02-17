@@ -26,7 +26,7 @@ Currently implemented I/O is limited to:
 - `console.error(...)` — same as `console.log`, but prints to stderr.
 - Module `import` — file-based module loading.
 
-String templating, `fs`, and other I/O are not yet specified.
+`fs` and other I/O are not yet specified.
 
 ## 2. Types
 
@@ -42,7 +42,33 @@ Objects may override `toString()` with a custom implementation. If no override i
 
 `toString()` is an **implicit method** — it exists on all values but does not appear in structural type signatures. A type declared as `{x: Number}` has `toString()` available without declaring it. A custom override must be type-compatible: it takes no arguments and returns `String`.
 
-`toString()` is not implicit coercion — it is an explicit protocol invoked by `console.log`, string templating (§1 — not yet specified), and explicit `String()` conversion, never by operators.
+`toString()` is not implicit coercion — it is an explicit protocol invoked by `console.log`, f-string interpolation, and explicit `String()` conversion, never by operators.
+
+#### String Templating (f-strings)
+
+F-strings provide string interpolation using the `f` prefix:
+
+```
+let name = "world";
+let greeting = f"Hello, {name}!";         # "Hello, world!"
+let result = f"2 + 2 = {2 + 2}";          # "2 + 2 = 4"
+```
+
+Any expression can appear inside `{...}`, including function calls, member access, and arithmetic. Braces must balance -- object literals and other `{}`-containing expressions work naturally inside interpolations.
+
+Each interpolated expression is converted to `String` via `toString()`. This is the same protocol used by `console.log` -- it is explicit conversion, not implicit coercion. Any type can be interpolated, since all types have `toString()`.
+
+```
+let p = {x: 1, y: 2};
+console.log(f"point = {p}");              # "point = {x: 1, y: 2}"
+console.log(f"type: {typeof p}");         # "type: Object"
+```
+
+To include a literal `{` or `}` in an f-string, double it: `f"use {{braces}}"` produces `"use {braces}"`.
+
+F-strings are type `String` -- not a separate type. `f"..."` is syntactic sugar that produces a `String` value.
+
+F-strings transpile to JavaScript template literals: `f"hello {name}"` becomes `` `hello ${String(name)}` ``.
 
 ### 2.2 Compound Types
 

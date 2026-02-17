@@ -26,5 +26,5 @@
 **TODO**
 17. `for...of` with destructuring
 18. C-style `for` loops
-19. String templating (TBD)
+19. F-strings (string interpolation) - see also [INTRO](doc/INTRO.md)
 20. Everything else

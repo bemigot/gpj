@@ -109,3 +109,63 @@ constraints:
 Until then, type aliases serve as **machine-readable intent** -- they
 document the programmer's expectation and will be enforced once the
 checker exists.
+
+---
+
+# F-strings (string interpolation)
+
+Prefix a string with `f` to embed expressions inside `{...}`:
+
+```
+let name = "world";
+console.log(f"Hello, {name}!");          # Hello, world!
+
+let x = 3;
+let y = 4;
+console.log(f"{x} + {y} = {x + y}");    # 3 + 4 = 7
+```
+
+Any expression works inside the braces -- function calls, member access,
+ternaries, even nested f-strings:
+
+```
+let items = [1, 2, 3];
+console.log(f"count: {items.length}");           # count: 3
+console.log(f"{x > 0 ? "positive" : "nope"}");  # positive
+```
+
+## Formatting numbers
+
+F-strings call `toString()` on each interpolated value -- the same
+protocol used by `console.log`.  For finer control, call formatting
+methods inside the braces:
+
+```
+let pi = 3.14159265;
+
+# Two decimal places
+console.log(f"pi = {pi.toFixed(2)}");            # pi = 3.14
+
+# Pad to 8 characters, right-aligned
+console.log(f"[{String(42).padStart(8)}]");      # [      42]
+
+# Pad with zeros
+console.log(f"{String(7).padStart(3, "0")}");    # 007
+
+# Left-aligned with trailing spaces
+console.log(f"[{String(42).padEnd(8)}]");        # [42      ]
+```
+
+## Literal braces
+
+Double them: `{{` produces `{`, `}}` produces `}`.
+
+```
+console.log(f"set = {{1, 2, 3}}");   # set = {1, 2, 3}
+```
+
+## How it compiles
+
+`f"hello {name}"` transpiles to the JavaScript template literal
+`` `hello ${String(name)}` ``.  The `String()` wrapper ensures
+`toString()` is called explicitly -- no implicit coercion.
