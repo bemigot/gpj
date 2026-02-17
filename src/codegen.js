@@ -27,10 +27,10 @@ function generate(node) {
     case "Program": {
       usedHelpers = new Set();
       const body = node.body.map(generate).join("\n");
-      const preamble = [];
+      const preamble = ['"use strict";'];
       if (usedHelpers.has("add")) preamble.push(GPJ_ADD_SRC);
       if (usedHelpers.has("arith")) preamble.push(GPJ_ARITH_SRC);
-      return preamble.length ? preamble.join("\n") + "\n" + body : body;
+      return preamble.join("\n") + "\n" + body;
     }
 
     case "ExpressionStatement":

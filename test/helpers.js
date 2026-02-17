@@ -17,6 +17,7 @@ function execGPJ(source) {
   try {
     const stdout = execFileSync("node", ["-e", js], {
       encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],  // without this, child stderr leaks to terminal (noisy on expected-error tests)
       timeout: 5000,
       env: { ...process.env, FORCE_COLOR: "0" },  // otherwise tests fail on TTY: actual: '\x1B[33mtrue\x1B[39m\n', expected: 'true\n'
     });
