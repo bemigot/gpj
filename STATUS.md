@@ -1,12 +1,10 @@
-### Implementation order after "Hello, world"
-
+**DONE** (scroll down for _TODO_ mark)
 #### Step 0.5 — Test infrastructure (prerequisite for all steps)
 - [x] `package.json` with `node --test` as test runner (no dependencies)
 - [x] Test harness: run `.gpj` files, assert stdout/stderr/exit code
 - [x] GitHub Actions CI: run tests on push
 
 #### Steps
-
 1. `let`/`val` declarations with primitives (Number, String, Boolean, None)
 2. Arithmetic and string concatenation with type checking
 3. `if`/`else`, `while`, `for`
@@ -26,10 +24,14 @@
 17. `for...of` with destructuring
 18. C-style `for` loops
 19. F-strings (string interpolation) - see also [INTRO](doc/INTRO.md)
-20. Ternary operator + `typeof` operator (foundational; `typeof` is prereq for type narrowing)
+20. Ternary operator, `typeof` operator (foundational; `typeof` is prereq for type narrowing)
 21. Whitespace enforcement — spaces around binary operators required by parser (§1 of SPEC)
-22. Type representation — parse type annotations into real AST nodes instead of discarding them (prereq for all type-checking steps)
+22. Type representation — parse type annotations into real AST nodes instead of discarding them
+    (prerequisite for all type-checking steps)
+
 **TODO**
+
 23. Basic type inference and checking — variable declarations, literals, simple mismatches
 24. Function types — check param/return annotations, infer return type from `return` statements
-25+ Union/nullable types (`Number | String`, `T?`), `typeof` narrowing, typed catch, Map/Set, private properties, method-call enforcement
+25. (to be expanded) Union/nullable types (`Number | String`, `T?`), `typeof` narrowing, typed catch, Map/Set,
+    private properties, method-call enforcement
