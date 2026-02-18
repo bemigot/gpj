@@ -15,8 +15,16 @@ class ParseError extends Error {
   }
 }
 
-function parse(tokens) {
+function parse(tokens, initialPrivateCtx = []) {
   let pos = 0;
+  // Stack of booleans: true = inside a function that is a direct property value
+  // of an object literal (i.e. an "object literal method"); false = any other
+  // function scope.  Used to enforce private-property access rules (§7).
+  let privateCtx = [...initialPrivateCtx];
+  // Set to true by parseProperty when the upcoming function expression /
+  // arrow-function is a direct property value, so parsePrimary / tryParseArrowFunction
+  // can push `true` onto privateCtx for that function's body.
+  let nextFuncIsObjMethod = false;
 
   function peek() {
     return tokens[pos];
@@ -278,7 +286,17 @@ function parse(tokens) {
           throw new ParseError("expected property name after '.'", tok);
         }
         advance();
-        node = { type: "MemberExpression", object: node, property: tok.value };
+        const propName = tok.value;
+        if (propName.startsWith("_")) {
+          const inMethod = privateCtx.length > 0 && privateCtx[privateCtx.length - 1];
+          if (!inMethod) {
+            throw new ParseError(
+              `private property '${propName}' is not accessible outside an object literal`,
+              tok
+            );
+          }
+        }
+        node = { type: "MemberExpression", object: node, property: propName };
       } else if (peek().type === TokenType.LBRACKET) {
         advance();
         const index = parseExpression();
@@ -306,6 +324,8 @@ function parse(tokens) {
 
   function tryParseArrowFunction() {
     const saved = pos;
+    const savedNextFuncIsObjMethod = nextFuncIsObjMethod;
+    let pushed = false;
     try {
       advance(); // (
       const params = [];
@@ -316,7 +336,9 @@ function parse(tokens) {
           params.push(parseParam());
         }
       }
-      if (peek().type !== TokenType.RPAREN) { pos = saved; return null; }
+      if (peek().type !== TokenType.RPAREN) {
+        pos = saved; nextFuncIsObjMethod = savedNextFuncIsObjMethod; return null;
+      }
       advance(); // )
       // Optional return type annotation
       let arrowReturnType = null;
@@ -324,8 +346,14 @@ function parse(tokens) {
         advance();
         arrowReturnType = parseTypeAnnotation();
       }
-      if (peek().type !== TokenType.ARROW) { pos = saved; return null; }
+      if (peek().type !== TokenType.ARROW) {
+        pos = saved; nextFuncIsObjMethod = savedNextFuncIsObjMethod; return null;
+      }
       advance(); // =>
+      const isObjMethod = nextFuncIsObjMethod;
+      nextFuncIsObjMethod = false;
+      privateCtx.push(isObjMethod);
+      pushed = true;
       // Block body or expression body
       let body;
       if (peek().type === TokenType.LBRACE) {
@@ -333,9 +361,12 @@ function parse(tokens) {
       } else {
         body = { type: "ExpressionBody", expression: parseExpression() };
       }
+      privateCtx.pop();
       return { type: "ArrowFunction", params, returnType: arrowReturnType, body };
     } catch (e) {
+      if (pushed) privateCtx.pop();
       pos = saved;
+      nextFuncIsObjMethod = savedNextFuncIsObjMethod;
       return null;
     }
   }
@@ -374,12 +405,16 @@ function parse(tokens) {
         // Function expression (anonymous) — only if NOT at statement level
         // Statement-level is handled in parseStatement, so if we get here
         // it's an expression position.
+        const isObjMethod = nextFuncIsObjMethod;
+        nextFuncIsObjMethod = false;
         advance(); // function
         expect(TokenType.LPAREN, "expected '('");
         const feParams = parseParamList();
         expect(TokenType.RPAREN, "expected ')'");
         const feReturnType = peek().type === TokenType.COLON ? (advance(), parseTypeAnnotation()) : null;
+        privateCtx.push(isObjMethod);
         const feBody = parseBlock();
+        privateCtx.pop();
         return { type: "FunctionExpression", params: feParams, returnType: feReturnType, body: feBody };
       }
       case TokenType.FSTRING: {
@@ -395,7 +430,7 @@ function parse(tokens) {
             quasis.push(currentText);
             currentText = "";
             const exprTokens = lex(part.value + ";");
-            const exprProgram = parse(exprTokens);
+            const exprProgram = parse(exprTokens, privateCtx);
             expressions.push(exprProgram.body[0].expression);
           }
         }
@@ -460,10 +495,18 @@ function parse(tokens) {
       advance();
       return { type: "SpreadElement", argument: parseExpression() };
     }
-    const key = expect(TokenType.IDENTIFIER, "expected property name");
+    if (!WORD_TYPES.has(peek().type)) {
+      throw new ParseError("expected property name", peek());
+    }
+    const key = advance();
     if (peek().type === TokenType.COLON) {
       advance();
+      // Signal that the immediately following function/arrow is an object-literal method.
+      if (peek().type === TokenType.FUNCTION || peek().type === TokenType.LPAREN) {
+        nextFuncIsObjMethod = true;
+      }
       const value = parseExpression();
+      nextFuncIsObjMethod = false; // reset in case it wasn't consumed (non-function value)
       return { type: "Property", key: key.value, value };
     }
     // Shorthand: { x } means { x: x }
@@ -598,7 +641,10 @@ function parse(tokens) {
       const name = expect(TokenType.IDENTIFIER, "expected identifier after '...'");
       return { type: "RestElement", name: name.value };
     }
-    const key = expect(TokenType.IDENTIFIER, "expected property name");
+    if (!WORD_TYPES.has(peek().type)) {
+      throw new ParseError("expected property name", peek());
+    }
+    const key = advance();
     if (peek().type === TokenType.COLON) {
       advance();
       // Could be a rename (identifier) or nested pattern ({...} or [...])
@@ -697,7 +743,10 @@ function parse(tokens) {
     advance(); // {
     const fields = [];
     while (peek().type !== TokenType.RBRACE) {
-      const key = expect(TokenType.IDENTIFIER, "expected field name in object type");
+      if (!WORD_TYPES.has(peek().type)) {
+        throw new ParseError("expected field name in object type", peek());
+      }
+      const key = advance();
       expect(TokenType.COLON, "expected ':' after field name in object type");
       const valueType = parseTypeAnnotation();
       fields.push({ key: key.value, valueType });
@@ -728,7 +777,9 @@ function parse(tokens) {
     const params = parseParamList();
     expect(TokenType.RPAREN, "expected ')'");
     const returnType = peek().type === TokenType.COLON ? (advance(), parseTypeAnnotation()) : null;
+    privateCtx.push(false);
     const body = parseBlock();
+    privateCtx.pop();
     return { type: "FunctionDeclaration", name: name.value, params, returnType, body };
   }
 
