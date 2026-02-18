@@ -78,6 +78,6 @@ Rules:
    * Implement: lexer, parser, codegen changes as needed.
    * Write tests in test/stepNN-<topic>.test.js (zero-padded step number).
    * Run `npm test`, fix until all pass.
+   * As soon as all tests pass, move the `**TODO**` line in STATUS.md down past the completed step(s). Do this before proposing the commit.
    * Show diff summary + commit message for approval.
-   * After commit, move the `**TODO**` line down past the completed step(s).
    * Suggest `/compact` after each commit to keep context window fresh.

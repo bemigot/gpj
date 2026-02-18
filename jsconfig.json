@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "module": "nodenext",
-    "checkJs": false
-  }
+    "checkJs": true
+  },
+  "exclude": ["project-history"]
 }

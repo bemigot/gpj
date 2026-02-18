@@ -64,7 +64,7 @@ describe("step 18 — C-style for loops", () => {
     // Actually, this should fail because you can't reassign a const
     // Let's just test that it compiles and the first iteration works
     // The runtime error happens on the update after first iteration
-    const { stderr } = execGPJ(src, { expectError: true });
+    const { stderr } = execGPJ(src);
     assert.ok(stderr.length > 0);
   });
 
