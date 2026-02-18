@@ -51,6 +51,7 @@ const TokenType = {
   SPREAD: "SPREAD",
   QUESTION: "QUESTION",
   NULLISH: "NULLISH",
+  PIPE: "PIPE",
 
   // Operators
   PLUS: "PLUS",
@@ -465,11 +466,7 @@ function lex(source) {
           advance();
           emit(TokenType.OR, "||");
         } else {
-          // Single | is used in type unions — but that's handled by the parser.
-          // For now, emit as a pipe token or handle in parser.
-          // Actually, type unions use | between types, so we need this.
-          // Let's just treat it as an error for now and handle type unions later.
-          throw new LexerError("Unexpected '|' — use '||' for logical OR", line, startCol);
+          emit(TokenType.PIPE, "|");
         }
         break;
       default:

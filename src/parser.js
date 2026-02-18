@@ -1,4 +1,11 @@
 import { TokenType, lex } from "./lexer.js";
+// Type AST node shapes (all produced by parseTypeAnnotation):
+//   NamedType    { name }
+//   GenericType  { name, params: TypeNode[] }
+//   ObjectType   { fields: { key, valueType }[] }
+//   TupleType    { elements: TypeNode[] }
+//   UnionType    { types: TypeNode[] }
+//   NullableType { inner: TypeNode }   (sugar for T | None)
 
 class ParseError extends Error {
   constructor(message, token) {
@@ -296,9 +303,10 @@ function parse(tokens) {
       if (peek().type !== TokenType.RPAREN) { pos = saved; return null; }
       advance(); // )
       // Optional return type annotation
+      let arrowReturnType = null;
       if (peek().type === TokenType.COLON) {
         advance();
-        skipTypeAnnotation();
+        arrowReturnType = parseTypeAnnotation();
       }
       if (peek().type !== TokenType.ARROW) { pos = saved; return null; }
       advance(); // =>
@@ -309,7 +317,7 @@ function parse(tokens) {
       } else {
         body = { type: "ExpressionBody", expression: parseExpression() };
       }
-      return { type: "ArrowFunction", params, body };
+      return { type: "ArrowFunction", params, returnType: arrowReturnType, body };
     } catch (e) {
       pos = saved;
       return null;
@@ -354,12 +362,9 @@ function parse(tokens) {
         expect(TokenType.LPAREN, "expected '('");
         const feParams = parseParamList();
         expect(TokenType.RPAREN, "expected ')'");
-        if (peek().type === TokenType.COLON) {
-          advance();
-          skipTypeAnnotation();
-        }
+        const feReturnType = peek().type === TokenType.COLON ? (advance(), parseTypeAnnotation()) : null;
         const feBody = parseBlock();
-        return { type: "FunctionExpression", params: feParams, body: feBody };
+        return { type: "FunctionExpression", params: feParams, returnType: feReturnType, body: feBody };
       }
       case TokenType.FSTRING: {
         advance();
@@ -503,12 +508,22 @@ function parse(tokens) {
 
   function parseTypeAlias() {
     advance(); // type
-    expect(TokenType.IDENTIFIER, "expected type name");
+    const name = expect(TokenType.IDENTIFIER, "expected type name").value;
+    // Optional generic parameters: type Pair<K, V> = ...
+    let params = [];
+    if (peek().type === TokenType.LT) {
+      advance(); // <
+      params.push(expect(TokenType.IDENTIFIER, "expected type parameter name").value);
+      while (peek().type === TokenType.COMMA) {
+        advance();
+        params.push(expect(TokenType.IDENTIFIER, "expected type parameter name").value);
+      }
+      expect(TokenType.GT, "expected '>'");
+    }
     expect(TokenType.ASSIGN, "expected '='");
-    // Skip the type expression until semicolon
-    skipTypeAnnotation();
+    const typeExpr = parseTypeAnnotation();
     expect(TokenType.SEMICOLON);
-    return { type: "TypeAlias" };
+    return { type: "TypeAlias", name, params, typeExpr };
   }
 
   function parseVarDeclaration() {
@@ -517,36 +532,24 @@ function parse(tokens) {
     // Destructuring: let {x, y} = ... or let [a, b] = ...
     if (peek().type === TokenType.LBRACE) {
       const pattern = parseObjectPattern();
-      // Skip type annotation
-      if (peek().type === TokenType.COLON) {
-        advance();
-        skipTypeAnnotation();
-      }
+      const typeAnnotation = peek().type === TokenType.COLON ? (advance(), parseTypeAnnotation()) : null;
       expect(TokenType.ASSIGN, "expected '=' in declaration");
       const init = parseExpression();
       expect(TokenType.SEMICOLON);
-      return { type: "DestructureDeclaration", kind: kind.value, pattern, init };
+      return { type: "DestructureDeclaration", kind: kind.value, pattern, typeAnnotation, init };
     }
 
     if (peek().type === TokenType.LBRACKET) {
       const pattern = parseArrayPattern();
-      // Skip type annotation
-      if (peek().type === TokenType.COLON) {
-        advance();
-        skipTypeAnnotation();
-      }
+      const typeAnnotation = peek().type === TokenType.COLON ? (advance(), parseTypeAnnotation()) : null;
       expect(TokenType.ASSIGN, "expected '=' in declaration");
       const init = parseExpression();
       expect(TokenType.SEMICOLON);
-      return { type: "DestructureDeclaration", kind: kind.value, pattern, init };
+      return { type: "DestructureDeclaration", kind: kind.value, pattern, typeAnnotation, init };
     }
 
     const name = expect(TokenType.IDENTIFIER, "expected variable name");
-    // Skip type annotation for now
-    if (peek().type === TokenType.COLON) {
-      advance();
-      skipTypeAnnotation();
-    }
+    const typeAnnotation = peek().type === TokenType.COLON ? (advance(), parseTypeAnnotation()) : null;
     expect(TokenType.ASSIGN, "expected '=' in declaration");
     const init = parseExpression();
     expect(TokenType.SEMICOLON);
@@ -554,6 +557,7 @@ function parse(tokens) {
       type: "VarDeclaration",
       kind: kind.value,
       name: name.value,
+      typeAnnotation,
       init,
     };
   }
@@ -626,41 +630,79 @@ function parse(tokens) {
     return { type: "PatternIdentifier", name: name.value };
   }
 
-  function skipTypeAnnotation() {
-    // Consume type tokens until we hit something that's clearly not a type.
-    // This is a rough skip — enough to get past `Number`, `String`,
-    // `Array<Number>`, `{x: Number}`, `[Number, String]`, `Number?`, etc.
-    //
-    // Delimiters (<>, {}, []) are depth-tracked so their inner tokens
-    // (including `,` and `:`) are consumed only inside matched pairs.
-    // At the top level only identifiers and `?` are consumed — this
-    // prevents eating `,` between function params or `{` of a block body.
-    let angleDepth = 0;
-    let braceDepth = 0;
-    let bracketDepth = 0;
-    let count = 0; // top-level type tokens consumed
-    while (true) {
-      const t = peek();
-      // Angle brackets: Array<Number>, Map<K, V>
-      if (t.type === TokenType.LT) { angleDepth++; advance(); count++; continue; }
-      if (t.type === TokenType.GT && angleDepth > 0) { angleDepth--; advance(); continue; }
-      if (angleDepth > 0) { advance(); continue; }
-      // Braces: structural types {x: Number} — only open at start or nested
-      if (t.type === TokenType.LBRACE && (braceDepth > 0 || count === 0)) { braceDepth++; advance(); count++; continue; }
-      if (t.type === TokenType.RBRACE && braceDepth > 0) { braceDepth--; advance(); continue; }
-      if (braceDepth > 0) { advance(); continue; }
-      // Brackets: tuple types [Number, String]
-      if (t.type === TokenType.LBRACKET) { bracketDepth++; advance(); count++; continue; }
-      if (t.type === TokenType.RBRACKET && bracketDepth > 0) { bracketDepth--; advance(); continue; }
-      if (bracketDepth > 0) { advance(); continue; }
-      // Top-level: identifiers (type names) and ? (nullable)
-      if (t.type === TokenType.IDENTIFIER || t.type === TokenType.QUESTION) {
-        advance();
-        count++;
-        continue;
-      }
-      break;
+  // --- type annotation parsing ---
+
+  function parseTypeAnnotation() {
+    const first = parseNullableType();
+    if (peek().type !== TokenType.PIPE) return first;
+    const types = [first];
+    while (peek().type === TokenType.PIPE) {
+      advance(); // |
+      types.push(parseNullableType());
     }
+    return { type: "UnionType", types };
+  }
+
+  function parseNullableType() {
+    const t = parseBaseType();
+    if (peek().type === TokenType.QUESTION) {
+      advance();
+      return { type: "NullableType", inner: t };
+    }
+    return t;
+  }
+
+  function parseBaseType() {
+    const tok = peek();
+    if (tok.type === TokenType.LBRACE) return parseObjectType();
+    if (tok.type === TokenType.LBRACKET) return parseTupleType();
+    if (tok.type === TokenType.NONE) {
+      advance();
+      return { type: "NamedType", name: "None" };
+    }
+    if (tok.type === TokenType.IDENTIFIER) {
+      const name = advance().value;
+      if (peek().type === TokenType.LT) {
+        advance(); // <
+        const params = [parseTypeAnnotation()];
+        while (peek().type === TokenType.COMMA) {
+          advance();
+          params.push(parseTypeAnnotation());
+        }
+        expect(TokenType.GT, "expected '>' in generic type");
+        return { type: "GenericType", name, params };
+      }
+      return { type: "NamedType", name };
+    }
+    throw new ParseError(`Expected type, got ${tok.type}(${JSON.stringify(tok.value)})`, tok);
+  }
+
+  function parseObjectType() {
+    advance(); // {
+    const fields = [];
+    while (peek().type !== TokenType.RBRACE) {
+      const key = expect(TokenType.IDENTIFIER, "expected field name in object type");
+      expect(TokenType.COLON, "expected ':' after field name in object type");
+      const valueType = parseTypeAnnotation();
+      fields.push({ key: key.value, valueType });
+      if (peek().type === TokenType.COMMA) advance();
+    }
+    expect(TokenType.RBRACE, "expected '}' to close object type");
+    return { type: "ObjectType", fields };
+  }
+
+  function parseTupleType() {
+    advance(); // [
+    const elements = [];
+    if (peek().type !== TokenType.RBRACKET) {
+      elements.push(parseTypeAnnotation());
+      while (peek().type === TokenType.COMMA) {
+        advance();
+        elements.push(parseTypeAnnotation());
+      }
+    }
+    expect(TokenType.RBRACKET, "expected ']' to close tuple type");
+    return { type: "TupleType", elements };
   }
 
   function parseFunctionDeclaration() {
@@ -669,13 +711,9 @@ function parse(tokens) {
     expect(TokenType.LPAREN, "expected '('");
     const params = parseParamList();
     expect(TokenType.RPAREN, "expected ')'");
-    // Skip return type annotation
-    if (peek().type === TokenType.COLON) {
-      advance();
-      skipTypeAnnotation();
-    }
+    const returnType = peek().type === TokenType.COLON ? (advance(), parseTypeAnnotation()) : null;
     const body = parseBlock();
-    return { type: "FunctionDeclaration", name: name.value, params, body };
+    return { type: "FunctionDeclaration", name: name.value, params, returnType, body };
   }
 
   function parseParamList() {
@@ -693,18 +731,12 @@ function parse(tokens) {
     if (peek().type === TokenType.SPREAD) {
       advance();
       const name = expect(TokenType.IDENTIFIER, "expected parameter name after '...'");
-      if (peek().type === TokenType.COLON) {
-        advance();
-        skipTypeAnnotation();
-      }
-      return { name: name.value, rest: true };
+      const typeAnnotation = peek().type === TokenType.COLON ? (advance(), parseTypeAnnotation()) : null;
+      return { name: name.value, rest: true, typeAnnotation };
     }
     const name = expect(TokenType.IDENTIFIER, "expected parameter name");
-    if (peek().type === TokenType.COLON) {
-      advance();
-      skipTypeAnnotation();
-    }
-    return { name: name.value };
+    const typeAnnotation = peek().type === TokenType.COLON ? (advance(), parseTypeAnnotation()) : null;
+    return { name: name.value, typeAnnotation };
   }
 
   function parseBlock() {
@@ -763,14 +795,10 @@ function parse(tokens) {
       advance(); // catch
       expect(TokenType.LPAREN, "expected '(' after catch");
       const param = expect(TokenType.IDENTIFIER, "expected catch parameter name");
-      // Skip optional type annotation
-      if (peek().type === TokenType.COLON) {
-        advance();
-        skipTypeAnnotation();
-      }
+      const catchType = peek().type === TokenType.COLON ? (advance(), parseTypeAnnotation()) : null;
       expect(TokenType.RPAREN, "expected ')'");
       const body = parseBlock();
-      handler = { param: param.value, body };
+      handler = { param: param.value, typeAnnotation: catchType, body };
     }
 
     if (peek().type === TokenType.FINALLY) {
@@ -890,11 +918,7 @@ function parse(tokens) {
       }
 
       // C-style for: for (let i = 0; i < 10; i += 1) { ... }
-      // Skip optional type annotation
-      if (peek().type === TokenType.COLON) {
-        advance();
-        skipTypeAnnotation();
-      }
+      if (peek().type === TokenType.COLON) { advance(); parseTypeAnnotation(); }
       expect(TokenType.ASSIGN, "expected '=' in for loop init");
       const init = parseExpression();
       expect(TokenType.SEMICOLON, "expected ';' after for loop init");
