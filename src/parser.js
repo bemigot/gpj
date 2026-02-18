@@ -105,14 +105,20 @@ function parse(tokens) {
     const left = parseTernary();
 
     if (peek().type === TokenType.ASSIGN) {
+      const tok = peek();
+      requireSpaceAround(tok, "=");
       advance();
+      requireSpaceAfter("=", peek());
       const right = parseExpression();
       return { type: "AssignmentExpression", left, right };
     }
 
     const compoundOp = COMPOUND_ASSIGN_OPS.get(peek().type);
     if (compoundOp !== undefined) {
+      const tok = peek();
+      requireSpaceAround(tok, compoundOp);
       advance();
+      requireSpaceAfter(compoundOp, peek());
       const right = parseExpression();
       return { type: "CompoundAssignment", operator: compoundOp, left, right };
     }
@@ -124,9 +130,15 @@ function parse(tokens) {
     const test = parseBinaryOrLogical();
 
     if (peek().type === TokenType.QUESTION) {
+      const qTok = peek();
+      if (!qTok.spaceBefore) throw new ParseError("'?' must be preceded by a space", qTok);
       advance();
+      if (!peek().spaceBefore) throw new ParseError("'?' must be followed by a space", peek());
       const consequent = parseExpression();
+      const colonTok = peek();
+      if (!colonTok.spaceBefore) throw new ParseError("':' must be preceded by a space", colonTok);
       expect(TokenType.COLON, "expected ':' in ternary expression");
+      if (!peek().spaceBefore) throw new ParseError("':' must be followed by a space", peek());
       const alternate = parseExpression();
       return { type: "TernaryExpression", test, consequent, alternate };
     }
@@ -155,14 +167,27 @@ function parse(tokens) {
 
   const COMPARISON_OPS = new Set(["==", "!=", "<", ">", "<=", ">="]);
 
+  function requireSpaceAround(tok, label) {
+    if (!tok.spaceBefore)
+      throw new ParseError(`'${label}' must be preceded by a space`, tok);
+  }
+
+  function requireSpaceAfter(label, tok) {
+    if (!tok.spaceBefore)
+      throw new ParseError(`'${label}' must be followed by a space`, tok);
+  }
+
   function parseBinaryOrLogical() {
     let left = parseUnary();
 
-    const op = BINARY_OPS.get(peek().type);
+    const opTok = peek();
+    const op = BINARY_OPS.get(opTok.type);
     if (op === undefined) return left;
 
+    requireSpaceAround(opTok, op);
     // First binary operator — start a chain
     advance();
+    requireSpaceAfter(op, peek());
     let right = parseUnary();
     left = { type: "BinaryExpression", operator: op, left, right };
 
@@ -180,15 +205,18 @@ function parse(tokens) {
 
     // Same-operator chaining: left-associative
     while (true) {
-      const next = BINARY_OPS.get(peek().type);
+      const nextTok = peek();
+      const next = BINARY_OPS.get(nextTok.type);
       if (next === undefined) break;
+      requireSpaceAround(nextTok, next);
       if (next !== op) {
         throw new ParseError(
           `Cannot mix ${op} and ${next} without parentheses`,
-          peek()
+          nextTok
         );
       }
       advance();
+      requireSpaceAfter(next, peek());
       right = parseUnary();
       left = { type: "BinaryExpression", operator: op, left, right };
     }

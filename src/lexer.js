@@ -112,11 +112,12 @@ const KEYWORDS = new Map([
 ]);
 
 class Token {
-  constructor(type, value, line, col) {
+  constructor(type, value, line, col, spaceBefore = true) {
     this.type = type;
     this.value = value;
     this.line = line;
     this.col = col;
+    this.spaceBefore = spaceBefore; // was there whitespace before this token?
   }
 
   toString() {
@@ -137,6 +138,7 @@ function lex(source) {
   let pos = 0;
   let line = 1;
   let col = 1;
+  let hadWhitespace = true; // treat start-of-file as after whitespace
 
   function peek() {
     return pos < source.length ? source[pos] : null;
@@ -158,7 +160,8 @@ function lex(source) {
   }
 
   function emit(type, value) {
-    tokens.push(new Token(type, value, line, col));
+    tokens.push(new Token(type, value, line, col, hadWhitespace));
+    hadWhitespace = false;
   }
 
   while (pos < source.length) {
@@ -167,6 +170,7 @@ function lex(source) {
     // Whitespace
     if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r") {
       advance();
+      hadWhitespace = true;
       continue;
     }
 
@@ -175,6 +179,7 @@ function lex(source) {
       while (pos < source.length && peek() !== "\n") {
         advance();
       }
+      hadWhitespace = true;
       continue;
     }
 
@@ -209,7 +214,8 @@ function lex(source) {
           value += advance();
         }
       }
-      tokens.push(new Token(TokenType.STRING, value, startLine, startCol));
+      tokens.push(new Token(TokenType.STRING, value, startLine, startCol, hadWhitespace));
+      hadWhitespace = false;
       continue;
     }
 
@@ -226,7 +232,8 @@ function lex(source) {
           num += advance();
         }
       }
-      tokens.push(new Token(TokenType.NUMBER, num, line, startCol));
+      tokens.push(new Token(TokenType.NUMBER, num, line, startCol, hadWhitespace));
+      hadWhitespace = false;
       continue;
     }
 
@@ -317,7 +324,8 @@ function lex(source) {
         currentText += advance();
       }
       parts.push({ type: "text", value: currentText });
-      tokens.push(new Token(TokenType.FSTRING, parts, startLine, startCol));
+      tokens.push(new Token(TokenType.FSTRING, parts, startLine, startCol, hadWhitespace));
+      hadWhitespace = false;
       continue;
     }
 
@@ -335,11 +343,8 @@ function lex(source) {
         id += advance();
       }
       const kwType = KEYWORDS.get(id);
-      if (kwType) {
-        tokens.push(new Token(kwType, id, line, startCol));
-      } else {
-        tokens.push(new Token(TokenType.IDENTIFIER, id, line, startCol));
-      }
+      tokens.push(new Token(kwType ?? TokenType.IDENTIFIER, id, line, startCol, hadWhitespace));
+      hadWhitespace = false;
       continue;
     }
 
