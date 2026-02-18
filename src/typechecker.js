@@ -1,12 +1,11 @@
 // Type-check pass: walks the AST after parsing and throws TypeCheckError on
 // type mismatches.  Only checks what can be determined from literals and
-// explicit annotations (step 23 scope).
+// explicit annotations (steps 23-24 scope).
 //
 // Deferred to later steps:
 //   - Union / nullable types (step 25)
 //   - Object and tuple structural checking (step 25+)
-//   - Function return-type checking (step 24)
-//   - Type inference from binary expressions / call expressions (step 24+)
+//   - Type inference from binary expressions (step 24+)
 
 class TypeCheckError extends Error {
   constructor(message) {
@@ -45,11 +44,12 @@ function typeLabel(t) {
       return `{${fs}}`;
     }
     case "TupleType": return `[${t.elements.map(typeLabel).join(", ")}]`;
+    case "FunctionType": return `() => ${typeLabel(t.returnType)}`;
     default: return "unknown";
   }
 }
 
-// The four primitive named types we can check confidently in step 23.
+// The four primitive named types we can check confidently.
 const PRIM_NAMES = new Set(["Number", "String", "Boolean", "None"]);
 
 function isPrimNamed(t) {
@@ -65,9 +65,11 @@ function checkCompat(actual, expected) {
   // Defer complex expected types to later steps.
   if (expected.type === "NullableType" || expected.type === "UnionType") return;
   if (expected.type === "ObjectType" || expected.type === "TupleType") return;
+  if (expected.type === "FunctionType") return;
 
   // Defer complex actual types.
   if (actual.type === "NullableType" || actual.type === "UnionType") return;
+  if (actual.type === "FunctionType") return;
 
   // Primitive-to-primitive: exact name match required.
   if (isPrimNamed(actual) && isPrimNamed(expected)) {
@@ -111,6 +113,13 @@ function inferType(node, env) {
       if (!elemType) return null;
       return { type: "GenericType", name: "Array", params: [elemType] };
     }
+    case "CallExpression": {
+      if (node.callee.type === "Identifier") {
+        const fnType = env.lookup(node.callee.name);
+        if (fnType && fnType.type === "FunctionType") return fnType.returnType;
+      }
+      return null;
+    }
     default: return null;
   }
 }
@@ -123,6 +132,7 @@ function checkExprAgainst(node, expected, env) {
   // Defer complex expected types.
   if (expected.type === "NullableType" || expected.type === "UnionType") return;
   if (expected.type === "ObjectType" || expected.type === "TupleType") return;
+  if (expected.type === "FunctionType") return;
 
   switch (node.type) {
     case "NumberLiteral":
@@ -149,21 +159,99 @@ function checkExprAgainst(node, expected, env) {
       checkCompat(actual, expected);
       break;
     }
+    case "CallExpression": {
+      const actual = inferType(node, env);
+      if (actual) checkCompat(actual, expected);
+      break;
+    }
     default:
       break; // complex expression — cannot determine type yet
   }
 }
 
+// Scan a block's statements for return statements (without recursing into
+// nested function definitions) and infer the common return type.
+// Returns null if types conflict or cannot be determined.
+// Returns None-typed node if there are no return statements (implicit None).
+function collectReturnType(block, env) {
+  const NONE = { type: "NamedType", name: "None" };
+  let result = undefined; // undefined = no return seen yet
+
+  function merge(t) {
+    if (result === undefined) {
+      result = t;
+    } else if (result !== null && t !== null && typeLabel(t) === typeLabel(result)) {
+      // same type — keep
+    } else {
+      result = null; // conflicting or one is unknown
+    }
+  }
+
+  function scan(stmts) {
+    for (const stmt of stmts) {
+      if (stmt.type === "ReturnStatement") {
+        const t = stmt.argument ? inferType(stmt.argument, env) : NONE;
+        merge(t);
+      } else if (stmt.type === "IfStatement") {
+        scan(stmt.consequent.body);
+        if (stmt.alternate) {
+          if (stmt.alternate.type === "Block") scan(stmt.alternate.body);
+          else scan([stmt.alternate]);
+        }
+      } else if (
+        stmt.type === "WhileStatement" ||
+        stmt.type === "DoWhileStatement" ||
+        stmt.type === "ForStatement" ||
+        stmt.type === "ForOfStatement"
+      ) {
+        scan(stmt.body.body);
+      } else if (stmt.type === "SwitchStatement") {
+        for (const c of stmt.cases) scan(c.body);
+      }
+      // Skip FunctionDeclaration / ArrowFunction / FunctionExpression:
+      // nested functions have their own return context.
+    }
+  }
+
+  scan(block.body);
+  return result === undefined ? NONE : result;
+}
+
+// Process any function-like node (FunctionDeclaration, FunctionExpression,
+// ArrowFunction): check param/return annotations and the body, then return
+// a FunctionType node representing the function's type.
+function processFunctionLike(node, outerEnv) {
+  const funcEnv = new Env(outerEnv);
+  for (const p of node.params) {
+    funcEnv.define(p.name, p.typeAnnotation ?? null);
+  }
+  const declaredReturn = node.returnType ?? null;
+
+  if (node.body && node.body.type === "ExpressionBody") {
+    // Arrow function with expression body — check and infer from the expression
+    if (declaredReturn) {
+      checkExprAgainst(node.body.expression, declaredReturn, funcEnv);
+    }
+    const inferred = declaredReturn ?? inferType(node.body.expression, funcEnv);
+    return { type: "FunctionType", returnType: inferred };
+  }
+
+  // Block body
+  checkBlock(node.body, funcEnv, declaredReturn);
+  const inferred = declaredReturn ?? collectReturnType(node.body, funcEnv);
+  return { type: "FunctionType", returnType: inferred };
+}
+
 // Process a block, giving it its own child scope.
-function checkBlock(block, env) {
+// returnTypeCtx: the enclosing function's declared return type (or null).
+function checkBlock(block, env, returnTypeCtx = null) {
   const inner = new Env(env);
   for (const stmt of block.body) {
-    checkStatement(stmt, inner);
+    checkStatement(stmt, inner, returnTypeCtx);
   }
 }
 
-// Check an expression node for type errors (currently: assignments and
-// function bodies that can appear in expression position).
+// Check an expression node for type errors (assignments in expression position).
 function checkExpr(expr, env) {
   if (!expr) return;
   if (expr.type === "AssignmentExpression") {
@@ -174,7 +262,7 @@ function checkExpr(expr, env) {
   }
 }
 
-function checkStatement(stmt, env) {
+function checkStatement(stmt, env, returnTypeCtx = null) {
   switch (stmt.type) {
     // Nodes that need no type checking.
     case "TypeAlias":
@@ -182,17 +270,36 @@ function checkStatement(stmt, env) {
     case "BreakStatement":
     case "ContinueStatement":
     case "ThrowStatement":
-    case "ReturnStatement":
       break;
 
+    case "ReturnStatement": {
+      if (returnTypeCtx === null) break;
+      if (stmt.argument === null) {
+        // bare return; — equivalent to return None;
+        checkCompat({ type: "NamedType", name: "None" }, returnTypeCtx);
+      } else {
+        checkExprAgainst(stmt.argument, returnTypeCtx, env);
+      }
+      break;
+    }
+
     case "ExportDeclaration":
-      checkStatement(stmt.declaration, env);
+      checkStatement(stmt.declaration, env, returnTypeCtx);
       break;
 
     case "VarDeclaration": {
       const ann = stmt.typeAnnotation ?? null;
-      checkExprAgainst(stmt.init, ann, env);
-      const inferred = inferType(stmt.init, env);
+      const init = stmt.init;
+
+      // Function-like inits: process body, store FunctionType in env.
+      if (init.type === "ArrowFunction" || init.type === "FunctionExpression") {
+        const fnType = processFunctionLike(init, env);
+        env.define(stmt.name, fnType);
+        break;
+      }
+
+      checkExprAgainst(init, ann, env);
+      const inferred = inferType(init, env);
       env.define(stmt.name, ann ?? inferred);
       break;
     }
@@ -202,11 +309,8 @@ function checkStatement(stmt, env) {
       break;
 
     case "FunctionDeclaration": {
-      const funcEnv = new Env(env);
-      for (const p of stmt.params) {
-        funcEnv.define(p.name, p.typeAnnotation ?? null);
-      }
-      checkBlock(stmt.body, funcEnv);
+      const fnType = processFunctionLike(stmt, env);
+      env.define(stmt.name, fnType);
       break;
     }
 
@@ -215,19 +319,19 @@ function checkStatement(stmt, env) {
       break;
 
     case "IfStatement":
-      checkBlock(stmt.consequent, env);
+      checkBlock(stmt.consequent, env, returnTypeCtx);
       if (stmt.alternate) {
         if (stmt.alternate.type === "Block") {
-          checkBlock(stmt.alternate, env);
+          checkBlock(stmt.alternate, env, returnTypeCtx);
         } else {
-          checkStatement(stmt.alternate, env); // else-if chain
+          checkStatement(stmt.alternate, env, returnTypeCtx); // else-if chain
         }
       }
       break;
 
     case "WhileStatement":
     case "DoWhileStatement":
-      checkBlock(stmt.body, env);
+      checkBlock(stmt.body, env, returnTypeCtx);
       break;
 
     case "ForStatement": {
@@ -239,7 +343,7 @@ function checkStatement(stmt, env) {
         const inferred = inferType(stmt.init.init, innerEnv);
         innerEnv.define(stmt.init.name, ann ?? inferred);
       }
-      checkBlock(stmt.body, innerEnv);
+      checkBlock(stmt.body, innerEnv, returnTypeCtx);
       break;
     }
 
@@ -247,26 +351,26 @@ function checkStatement(stmt, env) {
       const innerEnv = new Env(env);
       // Loop variable has unknown element type without iterable inference.
       if (stmt.variable) innerEnv.define(stmt.variable, null);
-      checkBlock(stmt.body, innerEnv);
+      checkBlock(stmt.body, innerEnv, returnTypeCtx);
       break;
     }
 
     case "SwitchStatement": {
       for (const c of stmt.cases) {
         const caseEnv = new Env(env);
-        for (const s of c.body) checkStatement(s, caseEnv);
+        for (const s of c.body) checkStatement(s, caseEnv, returnTypeCtx);
       }
       break;
     }
 
     case "TryStatement": {
-      checkBlock(stmt.block, env);
+      checkBlock(stmt.block, env, returnTypeCtx);
       if (stmt.handler) {
         const handlerEnv = new Env(env);
         handlerEnv.define(stmt.handler.param, stmt.handler.typeAnnotation ?? null);
-        checkBlock(stmt.handler.body, handlerEnv);
+        checkBlock(stmt.handler.body, handlerEnv, returnTypeCtx);
       }
-      if (stmt.finalizer) checkBlock(stmt.finalizer, env);
+      if (stmt.finalizer) checkBlock(stmt.finalizer, env, returnTypeCtx);
       break;
     }
 

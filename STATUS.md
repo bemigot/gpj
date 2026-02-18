@@ -29,10 +29,8 @@
 22. Type representation — parse type annotations into real AST nodes instead of discarding them
     (prerequisite for all type-checking steps)
 23. Basic type inference and checking — variable declarations, literals, simple mismatches
+24. Function types — check param/return annotations, infer return type from `return` statements
 
 **TODO**
-
-24. Function types — check param/return annotations, infer return type from `return` statements
-24. Function types — check param/return annotations, infer return type from `return` statements
 25. (to be expanded) Union/nullable types (`Number | String`, `T?`), `typeof` narrowing, typed catch, Map/Set,
     private properties, method-call enforcement
