@@ -113,6 +113,15 @@ function checkCompat(actual, expected) {
   }
 }
 
+// Look up the type of a MemberExpression's property via object type annotation.
+// Returns the field's valueType if the object's type is a known ObjectType, null otherwise.
+function inferMemberType(node, env) {
+  const objType = inferType(node.object, env);
+  if (!objType || objType.type !== "ObjectType") return null;
+  const field = objType.fields.find((f) => f.key === node.property);
+  return field ? field.valueType : null;
+}
+
 // Infer the static type of a literal or identifier expression.
 // Returns a type node, or null if the type cannot be determined.
 function inferType(node, env) {
@@ -122,6 +131,7 @@ function inferType(node, env) {
     case "BooleanLiteral": return { type: "NamedType", name: "Boolean" };
     case "NoneLiteral":    return { type: "NamedType", name: "None" };
     case "Identifier":     return env.lookup(node.name);
+    case "MemberExpression": return inferMemberType(node, env);
     case "ArrayLiteral": {
       if (node.elements.length === 0) return null; // empty — element type unknown
       const first = node.elements[0];
@@ -245,6 +255,7 @@ function processFunctionLike(node, outerEnv) {
 
   if (node.body && node.body.type === "ExpressionBody") {
     // Arrow function with expression body — check and infer from the expression
+    checkExprMethods(node.body.expression, funcEnv);
     if (declaredReturn) {
       checkExprAgainst(node.body.expression, declaredReturn, funcEnv);
     }
@@ -317,6 +328,72 @@ function computeRemainder(origType, typeName) {
   return null;
 }
 
+// Recursively scan an expression for MemberExpressions with a known FunctionType
+// property that are NOT in call position, and throw TypeCheckError for each.
+// inCallPos: true when this expr is the direct callee of a CallExpression.
+function checkExprMethods(expr, env, inCallPos = false) {
+  if (!expr) return;
+  switch (expr.type) {
+    case "MemberExpression": {
+      if (!inCallPos) {
+        const propType = inferMemberType(expr, env);
+        if (propType && propType.type === "FunctionType") {
+          throw new TypeCheckError(
+            `method '${expr.property}' must be called immediately; write '${expr.property}()' not '${expr.property}'`
+          );
+        }
+      }
+      checkExprMethods(expr.object, env, false);
+      break;
+    }
+    case "CallExpression": {
+      // Callee is in call position; arguments are not.
+      checkExprMethods(expr.callee, env, true);
+      for (const arg of expr.arguments) checkExprMethods(arg, env, false);
+      break;
+    }
+    case "BinaryExpression": {
+      checkExprMethods(expr.left, env, false);
+      checkExprMethods(expr.right, env, false);
+      break;
+    }
+    case "AssignmentExpression":
+    case "CompoundAssignment": {
+      // Left side is an assignment target — don't enforce call on it.
+      checkExprMethods(expr.right, env, false);
+      break;
+    }
+    case "UnaryExpression":
+    case "TypeofExpression": {
+      checkExprMethods(expr.argument, env, false);
+      break;
+    }
+    case "TernaryExpression": {
+      checkExprMethods(expr.test, env, false);
+      checkExprMethods(expr.consequent, env, false);
+      checkExprMethods(expr.alternate, env, false);
+      break;
+    }
+    case "ArrayLiteral": {
+      for (const elem of expr.elements) {
+        if (elem.type === "SpreadElement") checkExprMethods(elem.argument, env, false);
+        else checkExprMethods(elem, env, false);
+      }
+      break;
+    }
+    case "ObjectLiteral": {
+      for (const prop of expr.properties) {
+        if (prop.type === "SpreadElement") checkExprMethods(prop.argument, env, false);
+        else checkExprMethods(prop.value, env, false);
+      }
+      break;
+    }
+    default:
+      // Identifiers, literals, ThisExpression, TemplateLiteral, etc. — no recurse needed.
+      break;
+  }
+}
+
 // Check an expression node for type errors (assignments in expression position).
 function checkExpr(expr, env) {
   if (!expr) return;
@@ -339,6 +416,7 @@ function checkStatement(stmt, env, returnTypeCtx = null) {
       break;
 
     case "ReturnStatement": {
+      if (stmt.argument) checkExprMethods(stmt.argument, env);
       if (returnTypeCtx === null) break;
       if (stmt.argument === null) {
         // bare return; — equivalent to return None;
@@ -364,6 +442,7 @@ function checkStatement(stmt, env, returnTypeCtx = null) {
         break;
       }
 
+      checkExprMethods(init, env);
       checkExprAgainst(init, ann, env);
       const inferred = inferType(init, env);
       env.define(stmt.name, ann ?? inferred);
@@ -382,6 +461,7 @@ function checkStatement(stmt, env, returnTypeCtx = null) {
 
     case "ExpressionStatement":
       checkExpr(stmt.expression, env);
+      checkExprMethods(stmt.expression, env);
       break;
 
     case "IfStatement": {

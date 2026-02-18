@@ -6,6 +6,7 @@ import { TokenType, lex } from "./lexer.js";
 //   TupleType    { elements: TypeNode[] }
 //   UnionType    { types: TypeNode[] }
 //   NullableType { inner: TypeNode }   (sugar for T | None)
+//   FunctionType { params: TypeNode[], returnType: TypeNode }  (e.g. `() => Number`)
 
 class ParseError extends Error {
   constructor(message, token) {
@@ -718,6 +719,22 @@ function parse(tokens, initialPrivateCtx = []) {
     const tok = peek();
     if (tok.type === TokenType.LBRACE) return parseObjectType();
     if (tok.type === TokenType.LBRACKET) return parseTupleType();
+    if (tok.type === TokenType.LPAREN) {
+      // Function type: () => ReturnType  or  (T1, T2) => ReturnType
+      advance(); // (
+      const paramTypes = [];
+      if (peek().type !== TokenType.RPAREN) {
+        paramTypes.push(parseTypeAnnotation());
+        while (peek().type === TokenType.COMMA) {
+          advance();
+          paramTypes.push(parseTypeAnnotation());
+        }
+      }
+      expect(TokenType.RPAREN, "expected ')' in function type");
+      expect(TokenType.ARROW, "expected '=>' in function type");
+      const returnType = parseTypeAnnotation();
+      return { type: "FunctionType", params: paramTypes, returnType };
+    }
     if (tok.type === TokenType.NONE) {
       advance();
       return { type: "NamedType", name: "None" };

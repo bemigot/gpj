@@ -40,7 +40,9 @@
 29. Private properties — `_`-prefixed property access only via `this` inside the defining object literal;
     external access is a type error; tracked via parser object-literal context stack
 
-**TODO**
-
 30. Method-call enforcement — MemberExpression with FunctionType property must be in call position;
     `v.method` without `()` is a type error; zero runtime cost
+
+**TODO**
+
+<TBD>
