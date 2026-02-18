@@ -130,6 +130,17 @@ function generate(node) {
       return generate(node.expression) + ";";
 
     case "CallExpression": {
+      // Map.of(...) → new Map([...]) and Set.of(...) → new Set([...])
+      if (
+        node.callee.type === "MemberExpression" &&
+        node.callee.property === "of" &&
+        node.callee.object.type === "Identifier" &&
+        (node.callee.object.name === "Map" || node.callee.object.name === "Set")
+      ) {
+        const ctor = node.callee.object.name;
+        const args = node.arguments.map(generate).join(", ");
+        return `new ${ctor}([${args}])`;
+      }
       const callee = generate(node.callee);
       const args = node.arguments.map(generate).join(", ");
       return `${callee}(${args})`;

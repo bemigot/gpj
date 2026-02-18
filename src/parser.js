@@ -255,14 +255,30 @@ function parse(tokens) {
     return parseCallMember();
   }
 
+  // After a '.', any word token (identifier or keyword) is a valid property name.
+  const WORD_TYPES = new Set([
+    TokenType.IDENTIFIER,
+    TokenType.LET, TokenType.VAL, TokenType.FUNCTION, TokenType.RETURN,
+    TokenType.IF, TokenType.ELSE, TokenType.FOR, TokenType.WHILE, TokenType.DO,
+    TokenType.SWITCH, TokenType.CASE, TokenType.BREAK, TokenType.CONTINUE,
+    TokenType.TRY, TokenType.CATCH, TokenType.FINALLY, TokenType.THROW,
+    TokenType.TYPEOF, TokenType.THIS, TokenType.IMPORT, TokenType.EXPORT,
+    TokenType.FROM, TokenType.AS, TokenType.OF, TokenType.TYPE,
+    TokenType.BOOLEAN, TokenType.NONE,
+  ]);
+
   function parseCallMember() {
     let node = parsePrimary();
 
     while (true) {
       if (peek().type === TokenType.DOT) {
         advance();
-        const prop = expect(TokenType.IDENTIFIER, "expected property name after '.'");
-        node = { type: "MemberExpression", object: node, property: prop.value };
+        const tok = peek();
+        if (!WORD_TYPES.has(tok.type)) {
+          throw new ParseError("expected property name after '.'", tok);
+        }
+        advance();
+        node = { type: "MemberExpression", object: node, property: tok.value };
       } else if (peek().type === TokenType.LBRACKET) {
         advance();
         const index = parseExpression();
