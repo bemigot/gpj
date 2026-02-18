@@ -809,6 +809,25 @@ function parse(tokens) {
     // For now, support for...of: for (let x of expr)
     if (peek().type === TokenType.LET || peek().type === TokenType.VAL) {
       const kind = advance();
+
+      // Destructuring patterns: for (let [a, b] of ...) or for (let {x, y} of ...)
+      if (peek().type === TokenType.LBRACKET) {
+        const pattern = parseArrayPattern();
+        expect(TokenType.OF, "expected 'of' in for...of");
+        const iterable = parseExpression();
+        expect(TokenType.RPAREN, "expected ')'");
+        const body = parseBlock();
+        return { type: "ForOfStatement", kind: kind.value, pattern, iterable, body };
+      }
+      if (peek().type === TokenType.LBRACE) {
+        const pattern = parseObjectPattern();
+        expect(TokenType.OF, "expected 'of' in for...of");
+        const iterable = parseExpression();
+        expect(TokenType.RPAREN, "expected ')'");
+        const body = parseBlock();
+        return { type: "ForOfStatement", kind: kind.value, pattern, iterable, body };
+      }
+
       const name = expect(TokenType.IDENTIFIER, "expected variable name");
       if (peek().type === TokenType.OF) {
         advance(); // of

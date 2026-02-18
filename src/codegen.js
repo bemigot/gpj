@@ -183,7 +183,8 @@ function generate(node) {
 
     case "ForOfStatement": {
       const jsKind = node.kind === "val" ? "const" : "let";
-      return `for (${jsKind} ${node.variable} of ${generate(node.iterable)}) ${generateBlock(node.body)}`;
+      const binding = node.pattern ? generatePattern(node.pattern) : node.variable;
+      return `for (${jsKind} ${binding} of ${generate(node.iterable)}) ${generateBlock(node.body)}`;
     }
 
     case "ThrowStatement":
