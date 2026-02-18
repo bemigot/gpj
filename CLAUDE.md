@@ -79,6 +79,7 @@ Rules:
    * Write tests in test/stepNN-<topic>.test.js (zero-padded step number).
    * Run `npm test`, fix until all pass.
    * As soon as all tests pass, move the **TODO** marker in STATUS.md down past the completed step(s),
-     keeping a blank line before and after it. Do this before proposing the commit.
+     keeping a blank line before and after it (blank line after is required for Markdown list rendering).
+     Do this before proposing the commit.
    * Show diff summary + commit message for approval.
    * Suggest `/compact` after each commit to keep context window fresh.

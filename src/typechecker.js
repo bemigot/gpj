@@ -56,29 +56,35 @@ function isPrimNamed(t) {
   return t != null && t.type === "NamedType" && PRIM_NAMES.has(t.name);
 }
 
-// Check that `actual` is compatible with `expected`.
-// Throws TypeCheckError for clear primitive mismatches and Array<T> element
-// mismatches.  Returns silently for anything it cannot determine.
-function checkCompat(actual, expected) {
-  if (!actual || !expected) return;
+// Returns true when actual is assignable to expected; false for a clear
+// mismatch.  Returns true (permissive) for anything that cannot be resolved yet.
+function isCompat(actual, expected) {
+  if (!actual || !expected) return true;
+
+  // Union expected: compatible if actual matches any member.
+  if (expected.type === "UnionType") {
+    return expected.types.some((t) => isCompat(actual, t));
+  }
+
+  // Nullable T? is sugar for T | None.
+  if (expected.type === "NullableType") {
+    return (
+      isCompat(actual, expected.inner) ||
+      isCompat(actual, { type: "NamedType", name: "None" })
+    );
+  }
 
   // Defer complex expected types to later steps.
-  if (expected.type === "NullableType" || expected.type === "UnionType") return;
-  if (expected.type === "ObjectType" || expected.type === "TupleType") return;
-  if (expected.type === "FunctionType") return;
+  if (expected.type === "ObjectType" || expected.type === "TupleType") return true;
+  if (expected.type === "FunctionType") return true;
 
   // Defer complex actual types.
-  if (actual.type === "NullableType" || actual.type === "UnionType") return;
-  if (actual.type === "FunctionType") return;
+  if (actual.type === "NullableType" || actual.type === "UnionType") return true;
+  if (actual.type === "FunctionType") return true;
 
   // Primitive-to-primitive: exact name match required.
   if (isPrimNamed(actual) && isPrimNamed(expected)) {
-    if (actual.name !== expected.name) {
-      throw new TypeCheckError(
-        `type mismatch: expected ${typeLabel(expected)}, got ${typeLabel(actual)}`
-      );
-    }
-    return;
+    return actual.name === expected.name;
   }
 
   // Array<T>-to-Array<T>: check element types recursively.
@@ -88,12 +94,24 @@ function checkCompat(actual, expected) {
     actual.name === expected.name
   ) {
     for (let i = 0; i < Math.min(actual.params.length, expected.params.length); i++) {
-      checkCompat(actual.params[i], expected.params[i]);
+      if (!isCompat(actual.params[i], expected.params[i])) return false;
     }
-    return;
+    return true;
   }
 
   // Anything else (NamedType vs GenericType, etc.) — skip for now.
+  return true;
+}
+
+// Check that `actual` is compatible with `expected`.
+// Throws TypeCheckError for clear mismatches; returns silently otherwise.
+function checkCompat(actual, expected) {
+  if (!actual || !expected) return;
+  if (!isCompat(actual, expected)) {
+    throw new TypeCheckError(
+      `type mismatch: expected ${typeLabel(expected)}, got ${typeLabel(actual)}`
+    );
+  }
 }
 
 // Infer the static type of a literal or identifier expression.
@@ -129,8 +147,7 @@ function inferType(node, env) {
 function checkExprAgainst(node, expected, env) {
   if (!expected) return;
 
-  // Defer complex expected types.
-  if (expected.type === "NullableType" || expected.type === "UnionType") return;
+  // Defer complex expected types (unions/nullables handled by checkCompat).
   if (expected.type === "ObjectType" || expected.type === "TupleType") return;
   if (expected.type === "FunctionType") return;
 

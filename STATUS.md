@@ -30,10 +30,11 @@
     (prerequisite for all type-checking steps)
 23. Basic type inference and checking — variable declarations, literals, simple mismatches
 24. Function types — check param/return annotations, infer return type from `return` statements
-
-**TODO**
 25. Union/nullable assignment checking — enable `UnionType`/`NullableType` in `checkCompat`; `T | S` accepts
     any matching member; `T?` accepts T or None; no narrowing yet
+
+**TODO**
+
 26. `typeof` narrowing — recognise `typeof x == "TypeName"` in `if`/`switch` conditions; thread narrowed env
     into branch; narrow remainder into else; prerequisite for practical union use
 27. Typed catch — `catch (e: SomeType)` generates a runtime structural guard; multiple catch blocks in order;
