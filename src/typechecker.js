@@ -462,10 +462,10 @@ function checkStatement(stmt, env, returnTypeCtx = null) {
 
     case "TryStatement": {
       checkBlock(stmt.block, env, returnTypeCtx);
-      if (stmt.handler) {
+      for (const h of stmt.handlers) {
         const handlerEnv = new Env(env);
-        handlerEnv.define(stmt.handler.param, stmt.handler.typeAnnotation ?? null);
-        checkBlock(stmt.handler.body, handlerEnv, returnTypeCtx);
+        handlerEnv.define(h.param, h.typeAnnotation ?? null);
+        checkBlock(h.body, handlerEnv, returnTypeCtx);
       }
       if (stmt.finalizer) checkBlock(stmt.finalizer, env, returnTypeCtx);
       break;

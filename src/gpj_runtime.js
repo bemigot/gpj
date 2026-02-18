@@ -55,4 +55,17 @@ const GPJ_TYPEOF_SRC = `function __gpj_typeof(v) {
   return t[0].toUpperCase() + t.slice(1);
 }`;
 
-export { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC };
+// Structural type guard for typed catch: checks that v is a non-null, non-Array
+// object with every key in shape having the matching GPJ type.
+const GPJ_STRUCT_SRC = `function __gpj_isStruct(v, shape) {
+  if (v === null || typeof v !== "object" || Array.isArray(v)) return false;
+  var keys = Object.keys(shape);
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    if (!Object.prototype.hasOwnProperty.call(v, k)) return false;
+    if (__gpj_typeof(v[k]) !== shape[k]) return false;
+  }
+  return true;
+}`;
+
+export { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC };

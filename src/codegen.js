@@ -1,4 +1,4 @@
-import { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC } from "./gpj_runtime.js";
+import { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC } from "./gpj_runtime.js";
 
 class CodegenError extends Error {
   constructor(message, node) {
@@ -30,17 +30,67 @@ function escapeTemplateText(str) {
 }
 
 let usedHelpers;
+let typeAliases; // Map<name, typeExpr> — populated from top-level TypeAlias nodes
+
+// Return the GPJ type name string for a simple type node, or null if complex.
+function gpjTypeName(typeNode) {
+  if (!typeNode) return null;
+  if (typeNode.type === "NamedType") return typeNode.name;
+  if (typeNode.type === "GenericType") return typeNode.name; // "Array", etc.
+  return null;
+}
+
+// Resolve a type annotation to an array of structural shapes for runtime catch
+// guards.  Each shape is { fieldName: "GpjTypeName", ... }.  Returns null when
+// the type is unresolvable — the caller treats that as a permissive catch-all.
+function resolveTypeShape(typeNode) {
+  if (!typeNode) return null;
+  if (typeNode.type === "ObjectType") {
+    const shape = {};
+    for (const f of typeNode.fields) {
+      const t = gpjTypeName(f.valueType);
+      if (t === null) return null; // complex field type — treat as permissive
+      shape[f.key] = t;
+    }
+    return [shape];
+  }
+  if (typeNode.type === "NamedType") {
+    const resolved = typeAliases.get(typeNode.name);
+    if (!resolved) return null; // unknown named type — permissive
+    return resolveTypeShape(resolved);
+  }
+  if (typeNode.type === "UnionType") {
+    const all = [];
+    for (const t of typeNode.types) {
+      const shapes = resolveTypeShape(t);
+      if (!shapes) return null; // any unresolvable member — whole union is permissive
+      all.push(...shapes);
+    }
+    return all;
+  }
+  return null;
+}
 
 function generate(node) {
   switch (node.type) {
     case "Program": {
       usedHelpers = new Set();
+      typeAliases = new Map();
+      // First pass: collect top-level type aliases for typed-catch shape resolution.
+      for (const stmt of node.body) {
+        if (stmt.type === "TypeAlias") {
+          typeAliases.set(stmt.name, stmt.typeExpr);
+        } else if (stmt.type === "ExportDeclaration" && stmt.declaration.type === "TypeAlias") {
+          typeAliases.set(stmt.declaration.name, stmt.declaration.typeExpr);
+        }
+      }
       const body = node.body.map(generate).filter((s) => s !== "").join("\n");
       const preamble = [];
       if (usedHelpers.has("add")) preamble.push(GPJ_ADD_SRC);
       if (usedHelpers.has("arith")) preamble.push(GPJ_ARITH_SRC);
       if (usedHelpers.has("eq")) preamble.push(GPJ_EQ_SRC);
       if (usedHelpers.has("typeof")) preamble.push(GPJ_TYPEOF_SRC);
+      if (usedHelpers.has("struct")) preamble.push(GPJ_STRUCT_SRC);
       if (preamble.length === 0) return body;
       return preamble.join("\n") + "\n" + body;
     }
@@ -221,8 +271,54 @@ function generate(node) {
 
     case "TryStatement": {
       let code = `try ${generateBlock(node.block)}`;
-      if (node.handler) {
-        code += ` catch (${node.handler.param}) ${generateBlock(node.handler.body)}`;
+      const handlers = node.handlers;
+      if (handlers.length > 0) {
+        const allSimple = handlers.length === 1 && handlers[0].typeAnnotation === null;
+        if (allSimple) {
+          // Common case: single bare catch — emit directly, no overhead.
+          const h = handlers[0];
+          code += ` catch (${h.param}) ${generateBlock(h.body)}`;
+        } else {
+          // Typed or multiple catch: emit if/else chain inside one JS catch.
+          usedHelpers.add("typeof");
+          usedHelpers.add("struct");
+          let hasCatchAll = false;
+          const parts = [];
+          for (const h of handlers) {
+            const bodyLines = [
+              `let ${h.param} = __gpj_err;`,
+              ...h.body.body.map(generate),
+            ];
+            const bodyBlock = `{\n${bodyLines.map((l) => "  " + l).join("\n")}\n}`;
+            if (h.typeAnnotation === null) {
+              // Bare catch-all — always matches; stop processing further handlers.
+              hasCatchAll = true;
+              parts.push({ cond: null, body: bodyBlock });
+              break;
+            }
+            const shapes = resolveTypeShape(h.typeAnnotation);
+            if (shapes === null) {
+              // Unresolvable type annotation — treat permissively (catch-all).
+              hasCatchAll = true;
+              parts.push({ cond: null, body: bodyBlock });
+              break;
+            }
+            const cond = shapes
+              .map((s) => `__gpj_isStruct(__gpj_err, ${JSON.stringify(s)})`)
+              .join(" || ");
+            parts.push({ cond, body: bodyBlock });
+          }
+          if (!hasCatchAll) {
+            parts.push({ cond: null, body: "{ throw __gpj_err; }" });
+          }
+          let chain = "";
+          for (let i = 0; i < parts.length; i++) {
+            const { cond, body } = parts[i];
+            if (i > 0) chain += " else ";
+            chain += cond !== null ? `if (${cond}) ${body}` : body;
+          }
+          code += ` catch (__gpj_err) {\n${chain}\n}`;
+        }
       }
       if (node.finalizer) {
         code += ` finally ${generateBlock(node.finalizer)}`;

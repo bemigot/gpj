@@ -788,17 +788,17 @@ function parse(tokens) {
   function parseTryStatement() {
     advance(); // try
     const block = parseBlock();
-    let handler = null;
+    const handlers = [];
     let finalizer = null;
 
-    if (peek().type === TokenType.CATCH) {
+    while (peek().type === TokenType.CATCH) {
       advance(); // catch
       expect(TokenType.LPAREN, "expected '(' after catch");
       const param = expect(TokenType.IDENTIFIER, "expected catch parameter name");
       const catchType = peek().type === TokenType.COLON ? (advance(), parseTypeAnnotation()) : null;
       expect(TokenType.RPAREN, "expected ')'");
       const body = parseBlock();
-      handler = { param: param.value, typeAnnotation: catchType, body };
+      handlers.push({ param: param.value, typeAnnotation: catchType, body });
     }
 
     if (peek().type === TokenType.FINALLY) {
@@ -806,11 +806,11 @@ function parse(tokens) {
       finalizer = parseBlock();
     }
 
-    if (!handler && !finalizer) {
+    if (handlers.length === 0 && !finalizer) {
       throw new ParseError("try must have catch or finally", peek());
     }
 
-    return { type: "TryStatement", block, handler, finalizer };
+    return { type: "TryStatement", block, handlers, finalizer };
   }
 
   function parseWhileStatement() {

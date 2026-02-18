@@ -34,11 +34,11 @@
     any matching member; `T?` accepts T or None; no narrowing yet
 26. `typeof` narrowing — recognise `typeof x == "TypeName"` in `if`/`switch` conditions; thread narrowed env
     into branch; narrow remainder into else; prerequisite for practical union use
+27. Typed catch — `catch (e: SomeType)` generates a runtime structural guard; multiple catch blocks in order;
+    re-throw if none match; union types in catch annotations
 
 **TODO**
 
-27. Typed catch — `catch (e: SomeType)` generates a runtime structural guard; multiple catch blocks in order;
-    re-throw if none match; union types in catch annotations
 28. Map and Set — `Map.of(...)` / `Set.of(...)` factory transpilation; `for...of` iteration; method pass-through
 29. Private properties — `_`-prefixed property access only via `this` inside the defining object literal;
     external access is a type error; tracked via parser object-literal context stack
