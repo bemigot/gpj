@@ -1,4 +1,4 @@
-import { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC } from "./gpj_runtime.js";
+import { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC } from "./gpj_runtime.js";
 
 class CodegenError extends Error {
   constructor(message, node) {
@@ -40,6 +40,7 @@ function generate(node) {
       if (usedHelpers.has("add")) preamble.push(GPJ_ADD_SRC);
       if (usedHelpers.has("arith")) preamble.push(GPJ_ARITH_SRC);
       if (usedHelpers.has("eq")) preamble.push(GPJ_EQ_SRC);
+      if (usedHelpers.has("typeof")) preamble.push(GPJ_TYPEOF_SRC);
       if (preamble.length === 0) return body;
       return preamble.join("\n") + "\n" + body;
     }
@@ -262,7 +263,8 @@ function generate(node) {
       return `${node.operator}${generate(node.argument)}`;
 
     case "TypeofExpression":
-      return `typeof ${generate(node.argument)}`;
+      usedHelpers.add("typeof");
+      return `__gpj_typeof(${generate(node.argument)})`;
 
     case "BinaryExpression": {
       const left = generate(node.left);

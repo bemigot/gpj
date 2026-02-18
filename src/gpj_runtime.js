@@ -48,4 +48,11 @@ const GPJ_EQ_SRC = `function __gpj_eq(a, b, seen) {
   return true;
 }`;
 
-export { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC };
+const GPJ_TYPEOF_SRC = `function __gpj_typeof(v) {
+  if (v === null) return "None";
+  if (Array.isArray(v)) return "Array";
+  const t = typeof v;
+  return t[0].toUpperCase() + t.slice(1);
+}`;
+
+export { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC };
