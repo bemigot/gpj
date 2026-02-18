@@ -4,11 +4,13 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { lex } from "../src/lexer.js";
 import { parse } from "../src/parser.js";
+import { typecheck } from "../src/typechecker.js";
 import { generate } from "../src/codegen.js";
 
 function runGPJ(source) {
   const tokens = lex(source);
   const ast = parse(tokens);
+  typecheck(ast);
   const js = generate(ast);
   return { js };
 }

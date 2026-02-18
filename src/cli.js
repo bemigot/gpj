@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { lex } from "./lexer.js";
 import { parse } from "./parser.js";
+import { typecheck } from "./typechecker.js";
 import { generate } from "./codegen.js";
 
 function run(filePath) {
@@ -18,6 +19,7 @@ function run(filePath) {
   try {
     const tokens = lex(source);
     const ast = parse(tokens);
+    typecheck(ast);
     const js = generate(ast);
     // Execute the generated JS
     new Function(js)();
