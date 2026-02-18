@@ -27,4 +27,9 @@
 18. C-style `for` loops
 19. F-strings (string interpolation) - see also [INTRO](doc/INTRO.md)
 **TODO**
-20. Everything else
+20. Ternary operator + `typeof` operator (foundational; `typeof` is prereq for type narrowing)
+21. Whitespace enforcement — spaces around binary operators required by parser (§1 of SPEC)
+22. Type representation — parse type annotations into real AST nodes instead of discarding them (prereq for all type-checking steps)
+23. Basic type inference and checking — variable declarations, literals, simple mismatches
+24. Function types — check param/return annotations, infer return type from `return` statements
+25+ Union/nullable types (`Number | String`, `T?`), `typeof` narrowing, typed catch, Map/Set, private properties, method-call enforcement
