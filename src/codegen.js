@@ -20,6 +20,17 @@ function isPrimitiveLiteral(node) {
   return PRIMITIVE_LITERALS.has(node.type);
 }
 
+function escapeTemplateText(str) {
+  let out = "";
+  for (const ch of str) {
+    if (ch === "\\") out += "\\\\";
+    else if (ch === "`") out += "\\`";
+    else if (ch === "$") out += "\\$";
+    else out += ch;
+  }
+  return out;
+}
+
 let usedHelpers;
 
 function generate(node) {
@@ -92,6 +103,18 @@ function generate(node) {
 
     case "StringLiteral":
       return JSON.stringify(node.value);
+
+    case "TemplateLiteral": {
+      let out = "`";
+      for (let i = 0; i < node.quasis.length; i++) {
+        out += escapeTemplateText(node.quasis[i]);
+        if (i < node.expressions.length) {
+          out += `\${String(${generate(node.expressions[i])})}`;
+        }
+      }
+      out += "`";
+      return out;
+    }
 
     case "BooleanLiteral":
       return node.value ? "true" : "false";

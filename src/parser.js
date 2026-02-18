@@ -1,6 +1,6 @@
 "use strict";
 
-const { TokenType } = require("./lexer");
+const { TokenType, lex } = require("./lexer");
 
 class ParseError extends Error {
   constructor(message, token) {
@@ -334,6 +334,26 @@ function parse(tokens) {
         }
         const feBody = parseBlock();
         return { type: "FunctionExpression", params: feParams, body: feBody };
+      }
+      case TokenType.FSTRING: {
+        advance();
+        const parts = tok.value;
+        const quasis = [];
+        const expressions = [];
+        let currentText = "";
+        for (const part of parts) {
+          if (part.type === "text") {
+            currentText += part.value;
+          } else {
+            quasis.push(currentText);
+            currentText = "";
+            const exprTokens = lex(part.value + ";");
+            const exprProgram = parse(exprTokens);
+            expressions.push(exprProgram.body[0].expression);
+          }
+        }
+        quasis.push(currentText);
+        return { type: "TemplateLiteral", quasis, expressions };
       }
       case TokenType.LBRACKET:
         return parseArrayLiteral();

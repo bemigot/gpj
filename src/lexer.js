@@ -7,6 +7,9 @@ const TokenType = {
   BOOLEAN: "BOOLEAN",
   NONE: "NONE",
 
+  // F-string literals
+  FSTRING: "FSTRING",
+
   // Identifiers & keywords
   IDENTIFIER: "IDENTIFIER",
   LET: "LET",
@@ -226,6 +229,97 @@ function lex(source) {
         }
       }
       tokens.push(new Token(TokenType.NUMBER, num, line, startCol));
+      continue;
+    }
+
+    // F-string literals: f"..." or f'...'
+    if (ch === "f" && (lookahead(1) === '"' || lookahead(1) === "'")) {
+      const startLine = line;
+      const startCol = col;
+      advance(); // consume 'f'
+      const quote = advance(); // consume opening quote
+      const parts = [];
+      let currentText = "";
+
+      while (pos < source.length) {
+        const c = peek();
+        if (c === quote) {
+          advance();
+          break;
+        }
+        if (c === "\n") {
+          throw new LexerError("Unterminated f-string literal", startLine, startCol);
+        }
+        if (c === "{") {
+          if (lookahead(1) === "{") {
+            advance(); advance();
+            currentText += "{";
+            continue;
+          }
+          // Start of interpolation
+          advance(); // consume '{'
+          parts.push({ type: "text", value: currentText });
+          currentText = "";
+          // Collect expression until matching '}'
+          let exprStr = "";
+          let depth = 1;
+          while (pos < source.length && depth > 0) {
+            const ec = peek();
+            if (ec === "{") {
+              depth++;
+              exprStr += advance();
+            } else if (ec === "}") {
+              depth--;
+              if (depth > 0) exprStr += advance();
+              else advance(); // consume closing '}'
+            } else if (ec === '"' || ec === "'") {
+              const sq = advance();
+              exprStr += sq;
+              while (pos < source.length && peek() !== sq) {
+                if (peek() === "\\") {
+                  exprStr += advance();
+                  if (pos < source.length) exprStr += advance();
+                } else {
+                  exprStr += advance();
+                }
+              }
+              if (pos < source.length) exprStr += advance(); // closing quote
+            } else if (ec === "\n") {
+              throw new LexerError("Newline inside f-string expression", line, col);
+            } else {
+              exprStr += advance();
+            }
+          }
+          parts.push({ type: "expr", value: exprStr });
+          continue;
+        }
+        if (c === "}") {
+          if (lookahead(1) === "}") {
+            advance(); advance();
+            currentText += "}";
+            continue;
+          }
+          throw new LexerError("Unexpected '}' in f-string", line, col);
+        }
+        if (c === "\\") {
+          advance();
+          const esc = advance();
+          switch (esc) {
+            case "n": currentText += "\n"; break;
+            case "t": currentText += "\t"; break;
+            case "r": currentText += "\r"; break;
+            case "\\": currentText += "\\"; break;
+            case "'": currentText += "'"; break;
+            case '"': currentText += '"'; break;
+            default:
+              throw new LexerError(`Unknown escape sequence \\${esc}`, line, col);
+          }
+          continue;
+        }
+        currentText += advance();
+      }
+      parts.push({ type: "text", value: currentText });
+      tokens.push(new Token(TokenType.FSTRING, parts, startLine, startCol));
       continue;
     }
 
