@@ -1,9 +1,8 @@
 // Type-check pass: walks the AST after parsing and throws TypeCheckError on
 // type mismatches.  Only checks what can be determined from literals and
-// explicit annotations (steps 23-24 scope).
+// explicit annotations (steps 23-25 scope).
 //
 // Deferred to later steps:
-//   - Union / nullable types (step 25)
 //   - Object and tuple structural checking (step 25+)
 //   - Type inference from binary expressions (step 24+)
 
@@ -268,6 +267,56 @@ function checkBlock(block, env, returnTypeCtx = null) {
   }
 }
 
+// Extract a typeof narrowing guard from a condition expression.
+// Matches: `typeof x == "TypeName"`, `"TypeName" == typeof x`, and != variants.
+// Returns { varName, typeName, negated } or null.
+function extractTypeofGuard(cond) {
+  if (!cond || cond.type !== "BinaryExpression") return null;
+  if (cond.operator !== "==" && cond.operator !== "!=") return null;
+
+  let typeofExpr, strLiteral;
+  if (cond.left.type === "TypeofExpression" && cond.right.type === "StringLiteral") {
+    typeofExpr = cond.left;
+    strLiteral = cond.right;
+  } else if (cond.right.type === "TypeofExpression" && cond.left.type === "StringLiteral") {
+    typeofExpr = cond.right;
+    strLiteral = cond.left;
+  } else {
+    return null;
+  }
+
+  if (typeofExpr.argument.type !== "Identifier") return null;
+  return { varName: typeofExpr.argument.name, typeName: strLiteral.value, negated: cond.operator === "!=" };
+}
+
+// Compute the type a variable has in the else-branch after a typeof guard
+// narrowed it to `typeName`.  origType is the variable's pre-guard type.
+function computeRemainder(origType, typeName) {
+  if (!origType) return null;
+
+  if (origType.type === "UnionType") {
+    const remaining = origType.types.filter((t) => typeLabel(t) !== typeName);
+    if (remaining.length === 0) return null;
+    if (remaining.length === 1) return remaining[0];
+    return { type: "UnionType", types: remaining };
+  }
+
+  if (origType.type === "NullableType") {
+    // T? = T | None
+    const innerLabel = typeLabel(origType.inner);
+    if (typeName === innerLabel) return { type: "NamedType", name: "None" };
+    if (typeName === "None") return origType.inner;
+    return origType;
+  }
+
+  if (origType.type === "NamedType") {
+    if (typeName === origType.name) return null; // narrowed away entirely
+    return origType; // guard didn't match — return original
+  }
+
+  return null;
+}
+
 // Check an expression node for type errors (assignments in expression position).
 function checkExpr(expr, env) {
   if (!expr) return;
@@ -335,16 +384,36 @@ function checkStatement(stmt, env, returnTypeCtx = null) {
       checkExpr(stmt.expression, env);
       break;
 
-    case "IfStatement":
-      checkBlock(stmt.consequent, env, returnTypeCtx);
+    case "IfStatement": {
+      const guard = extractTypeofGuard(stmt.test);
+      let thenEnv = env;
+      let elseEnv = env;
+      if (guard) {
+        const origType = env.lookup(guard.varName);
+        const narrowedType = { type: "NamedType", name: guard.typeName };
+        const remainderType = computeRemainder(origType, guard.typeName);
+        if (!guard.negated) {
+          thenEnv = new Env(env);
+          thenEnv.define(guard.varName, narrowedType);
+          elseEnv = new Env(env);
+          elseEnv.define(guard.varName, remainderType);
+        } else {
+          thenEnv = new Env(env);
+          thenEnv.define(guard.varName, remainderType);
+          elseEnv = new Env(env);
+          elseEnv.define(guard.varName, narrowedType);
+        }
+      }
+      checkBlock(stmt.consequent, thenEnv, returnTypeCtx);
       if (stmt.alternate) {
         if (stmt.alternate.type === "Block") {
-          checkBlock(stmt.alternate, env, returnTypeCtx);
+          checkBlock(stmt.alternate, elseEnv, returnTypeCtx);
         } else {
-          checkStatement(stmt.alternate, env, returnTypeCtx); // else-if chain
+          checkStatement(stmt.alternate, elseEnv, returnTypeCtx); // else-if chain
         }
       }
       break;
+    }
 
     case "WhileStatement":
     case "DoWhileStatement":
@@ -373,8 +442,19 @@ function checkStatement(stmt, env, returnTypeCtx = null) {
     }
 
     case "SwitchStatement": {
+      // Narrow per-case when discriminant is `typeof x`.
+      const disc = stmt.discriminant;
+      const typeofVar =
+        disc &&
+        disc.type === "TypeofExpression" &&
+        disc.argument.type === "Identifier"
+          ? disc.argument.name
+          : null;
       for (const c of stmt.cases) {
         const caseEnv = new Env(env);
+        if (typeofVar && c.test && c.test.type === "StringLiteral") {
+          caseEnv.define(typeofVar, { type: "NamedType", name: c.test.value });
+        }
         for (const s of c.body) checkStatement(s, caseEnv, returnTypeCtx);
       }
       break;
