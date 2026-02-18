@@ -42,7 +42,9 @@
 
 30. Method-call enforcement — MemberExpression with FunctionType property must be in call position;
     `v.method` without `()` is a type error; zero runtime cost
+31. `Unknown` type — operations on `Unknown` are a type error; narrow with `typeof` first;
+    `??` on a non-nullable left operand is a type error
 
 **TODO**
 
-<TBD>
+Plan the next steps: stdlib (tentatively)

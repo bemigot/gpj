@@ -55,10 +55,31 @@ function isPrimNamed(t) {
   return t != null && t.type === "NamedType" && PRIM_NAMES.has(t.name);
 }
 
+function isUnknown(t) {
+  return t != null && t.type === "NamedType" && t.name === "Unknown";
+}
+
+// Returns true when t can hold None (None, T?, T | None), or when t is
+// null/unknown (permissive). Used to enforce that '??' left operand is
+// genuinely nullable.
+function isNullable(t) {
+  if (!t) return true; // unknown type — be permissive
+  if (t.type === "NullableType") return true;
+  if (t.type === "NamedType" && t.name === "None") return true; // None itself
+  if (t.type === "UnionType")
+    return t.types.some((m) => m.type === "NamedType" && m.name === "None");
+  return false;
+}
+
 // Returns true when actual is assignable to expected; false for a clear
 // mismatch.  Returns true (permissive) for anything that cannot be resolved yet.
 function isCompat(actual, expected) {
   if (!actual || !expected) return true;
+
+  // Unknown expected: any value can be assigned to Unknown.
+  if (isUnknown(expected)) return true;
+  // Unknown actual: not assignable to any specific type without narrowing first.
+  if (isUnknown(actual)) return false;
 
   // Union expected: compatible if actual matches any member.
   if (expected.type === "UnionType") {
@@ -353,6 +374,25 @@ function checkExprMethods(expr, env, inCallPos = false) {
       break;
     }
     case "BinaryExpression": {
+      const lType = inferType(expr.left, env);
+      const rType = inferType(expr.right, env);
+      // Unknown check: operands must be narrowed before use in any expression.
+      if (isUnknown(lType)) {
+        throw new TypeCheckError(
+          `cannot use 'Unknown' typed value as operand — narrow with 'typeof' first`
+        );
+      }
+      if (isUnknown(rType)) {
+        throw new TypeCheckError(
+          `cannot use 'Unknown' typed value as operand — narrow with 'typeof' first`
+        );
+      }
+      // ?? check: left operand must be a nullable type (T? or T | None).
+      if (expr.operator === "??" && !isNullable(lType)) {
+        throw new TypeCheckError(
+          `'??' left operand has non-nullable type '${typeLabel(lType)}'; '??' can never trigger`
+        );
+      }
       checkExprMethods(expr.left, env, false);
       checkExprMethods(expr.right, env, false);
       break;
@@ -363,8 +403,19 @@ function checkExprMethods(expr, env, inCallPos = false) {
       checkExprMethods(expr.right, env, false);
       break;
     }
-    case "UnaryExpression":
+    case "UnaryExpression": {
+      // typeof is the narrowing mechanism for Unknown — allowed on any type.
+      const argType = inferType(expr.argument, env);
+      if (isUnknown(argType)) {
+        throw new TypeCheckError(
+          `cannot use 'Unknown' typed value as operand — narrow with 'typeof' first`
+        );
+      }
+      checkExprMethods(expr.argument, env, false);
+      break;
+    }
     case "TypeofExpression": {
+      // typeof is the narrowing mechanism — allowed on Unknown, no check needed.
       checkExprMethods(expr.argument, env, false);
       break;
     }

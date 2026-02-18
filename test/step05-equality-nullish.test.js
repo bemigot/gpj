@@ -52,24 +52,20 @@ describe("step 5 — == / != / ??", () => {
     assert.equal(stdout, "5\n");
   });
 
-  it("3 ?? 5 → 3", () => {
-    const { stdout } = execGPJ(`console.log(3 ?? 5);`);
-    assert.equal(stdout, "3\n");
+  it("3 ?? 5 — TypeCheckError (Number is not nullable)", () => {
+    assert.throws(() => runGPJ(`console.log(3 ?? 5);`), /\?\?/);
   });
 
-  it('"" ?? "fallback" → "" (empty string is not None)', () => {
-    const { stdout } = execGPJ(`console.log("" ?? "fallback");`);
-    assert.equal(stdout, "\n");
+  it('"" ?? "fallback" — TypeCheckError (String is not nullable)', () => {
+    assert.throws(() => runGPJ(`console.log("" ?? "fallback");`), /\?\?/);
   });
 
-  it("0 ?? 10 → 0 (zero is not None)", () => {
-    const { stdout } = execGPJ(`console.log(0 ?? 10);`);
-    assert.equal(stdout, "0\n");
+  it("0 ?? 10 — TypeCheckError (Number is not nullable)", () => {
+    assert.throws(() => runGPJ(`console.log(0 ?? 10);`), /\?\?/);
   });
 
-  it("false ?? true → false (false is not None)", () => {
-    const { stdout } = execGPJ(`console.log(false ?? true);`);
-    assert.equal(stdout, "false\n");
+  it("false ?? true — TypeCheckError (Boolean is not nullable)", () => {
+    assert.throws(() => runGPJ(`console.log(false ?? true);`), /\?\?/);
   });
 
   it("None ?? None → None", () => {
