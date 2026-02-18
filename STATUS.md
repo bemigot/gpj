@@ -24,7 +24,7 @@
 15. Destructuring (object, array, nested, rest, rename)
 16. Compound assignment (`+=`, `-=`, `*=`, `/=`, `%=`, `**=`)
 17. `for...of` with destructuring
-**TODO**
 18. C-style `for` loops
+**TODO**
 19. F-strings (string interpolation) - see also [INTRO](doc/INTRO.md)
 20. Everything else

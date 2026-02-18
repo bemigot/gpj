@@ -842,8 +842,35 @@ function parse(tokens) {
           body,
         };
       }
+
+      // C-style for: for (let i = 0; i < 10; i += 1) { ... }
+      // Skip optional type annotation
+      if (peek().type === TokenType.COLON) {
+        advance();
+        skipTypeAnnotation();
+      }
+      expect(TokenType.ASSIGN, "expected '=' in for loop init");
+      const init = parseExpression();
+      expect(TokenType.SEMICOLON, "expected ';' after for loop init");
+      const test = parseExpression();
+      expect(TokenType.SEMICOLON, "expected ';' after for loop condition");
+      const update = parseExpression();
+      expect(TokenType.RPAREN, "expected ')'");
+      const body = parseBlock();
+      return {
+        type: "ForStatement",
+        init: {
+          type: "VarDeclaration",
+          kind: kind.value,
+          name: name.value,
+          init,
+        },
+        test,
+        update,
+        body,
+      };
     }
-    throw new ParseError("Only for...of loops are supported currently", peek());
+    throw new ParseError("for loop requires a declaration (let/val)", peek());
   }
 
   return parseProgram();

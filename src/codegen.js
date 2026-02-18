@@ -181,6 +181,13 @@ function generate(node) {
       return `switch (${generate(node.discriminant)}) {\n${cases.join("\n")}\n}`;
     }
 
+    case "ForStatement": {
+      const init = generate(node.init).replace(/;$/, "");
+      const test = generate(node.test);
+      const update = generate(node.update);
+      return `for (${init}; ${test}; ${update}) ${generateBlock(node.body)}`;
+    }
+
     case "ForOfStatement": {
       const jsKind = node.kind === "val" ? "const" : "let";
       const binding = node.pattern ? generatePattern(node.pattern) : node.variable;
