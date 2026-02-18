@@ -1,10 +1,8 @@
-"use strict";
-
-const { describe, it } = require("node:test");
-const assert = require("node:assert/strict");
-const { lex } = require("../src/lexer");
-const { parse } = require("../src/parser");
-const { execGPJ } = require("./helpers");
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { lex } from "../src/lexer.js";
+import { parse } from "../src/parser.js";
+import { execGPJ, runGPJ } from "./helpers.js";
 
 describe("step 3 — if/else, while, for...of, break, continue", () => {
   // --- if / else ---
@@ -193,13 +191,11 @@ describe("step 3 — if/else, while, for...of, break, continue", () => {
   // --- codegen checks ---
 
   it("while emits while keyword", () => {
-    const { runGPJ } = require("./helpers");
     const { js } = runGPJ("let i = 0; while (i < 3) { i = i + 1; }");
     assert.ok(js.includes("while"), "expected 'while' in output JS");
   });
 
   it("for...of emits for...of", () => {
-    const { runGPJ } = require("./helpers");
     const { js } = runGPJ("for (let x of [1, 2]) { console.log(x); }");
     assert.ok(js.includes("for"), "expected 'for' in output JS");
     assert.ok(js.includes("of"), "expected 'of' in output JS");

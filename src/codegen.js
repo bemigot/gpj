@@ -1,6 +1,4 @@
-"use strict";
-
-const { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC } = require("./gpj_runtime");
+import { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC } from "./gpj_runtime.js";
 
 class CodegenError extends Error {
   constructor(message, node) {
@@ -325,4 +323,4 @@ function generatePattern(node) {
   }
 }
 
-module.exports = { generate, CodegenError };
+export { generate, CodegenError };

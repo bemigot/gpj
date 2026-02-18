@@ -1,8 +1,6 @@
-"use strict";
-
-const { describe, it } = require("node:test");
-const assert = require("node:assert/strict");
-const { execGPJ, runGPJ } = require("./helpers");
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { execGPJ, runGPJ } from "./helpers.js";
 
 describe("step 4 — functions (declaration, arrow, expression)", () => {
   // --- function declarations (regression) ---

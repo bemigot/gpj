@@ -1,5 +1,3 @@
-"use strict";
-
 const TokenType = {
   // Literals
   NUMBER: "NUMBER",
@@ -478,4 +476,4 @@ function lex(source) {
   return tokens;
 }
 
-module.exports = { lex, Token, TokenType, LexerError };
+export { lex, Token, TokenType, LexerError };

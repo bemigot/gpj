@@ -1,8 +1,6 @@
-"use strict";
-
-const { describe, it } = require("node:test");
-const assert = require("node:assert/strict");
-const { runGPJ, execGPJ } = require("./helpers");
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { runGPJ, execGPJ } from "./helpers.js";
 
 describe("step 14 — type aliases (parse and skip)", () => {
   it("simple type alias is parsed and skipped", () => {

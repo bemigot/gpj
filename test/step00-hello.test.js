@@ -1,8 +1,6 @@
-"use strict";
-
-const { describe, it } = require("node:test");
-const assert = require("node:assert/strict");
-const { execGPJ } = require("./helpers");
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { execGPJ } from "./helpers.js";
 
 describe("step 0 — hello world", () => {
   it("prints Hello, world!", () => {

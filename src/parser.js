@@ -1,6 +1,4 @@
-"use strict";
-
-const { TokenType, lex } = require("./lexer");
+import { TokenType, lex } from "./lexer.js";
 
 class ParseError extends Error {
   constructor(message, token) {
@@ -896,4 +894,4 @@ function parse(tokens) {
   return parseProgram();
 }
 
-module.exports = { parse, ParseError };
+export { parse, ParseError };

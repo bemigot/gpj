@@ -1,8 +1,6 @@
-"use strict";
-
-const { describe, it } = require("node:test");
-const assert = require("node:assert/strict");
-const { execGPJ } = require("./helpers");
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { execGPJ } from "./helpers.js";
 
 describe("step 18 — C-style for loops", () => {
   it("basic counting loop", () => {

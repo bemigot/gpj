@@ -1,5 +1,3 @@
-"use strict";
-
 // GPJ runtime helpers — injected into transpiled output as needed.
 
 const GPJ_ADD_SRC = `function __gpj_add(a, b) {
@@ -50,4 +48,4 @@ const GPJ_EQ_SRC = `function __gpj_eq(a, b, seen) {
   return true;
 }`;
 
-module.exports = { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC };
+export { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC };

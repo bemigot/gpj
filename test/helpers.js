@@ -1,12 +1,10 @@
-"use strict";
-
-const { execFileSync } = require("child_process");
-const fs = require("fs");
-const path = require("path");
-const os = require("os");
-const { lex } = require("../src/lexer");
-const { parse } = require("../src/parser");
-const { generate } = require("../src/codegen");
+import { execFileSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
+import { lex } from "../src/lexer.js";
+import { parse } from "../src/parser.js";
+import { generate } from "../src/codegen.js";
 
 function runGPJ(source) {
   const tokens = lex(source);
@@ -71,4 +69,4 @@ function execGPJModules(files, main) {
   }
 }
 
-module.exports = { runGPJ, execGPJ, execGPJModules };
+export { runGPJ, execGPJ, execGPJModules };

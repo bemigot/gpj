@@ -1,10 +1,8 @@
-"use strict";
-
-const { describe, it } = require("node:test");
-const assert = require("node:assert/strict");
-const { lex } = require("../src/lexer");
-const { parse } = require("../src/parser");
-const { runGPJ, execGPJ } = require("./helpers");
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { lex } from "../src/lexer.js";
+import { parse } from "../src/parser.js";
+import { runGPJ, execGPJ } from "./helpers.js";
 
 describe("step 2 — arithmetic, string concat, and binary operators", () => {
   // --- execution tests ---

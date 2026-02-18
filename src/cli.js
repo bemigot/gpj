@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-"use strict";
 
-const fs = require("fs");
-const path = require("path");
-const { lex } = require("./lexer");
-const { parse } = require("./parser");
-const { generate } = require("./codegen");
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { lex } from "./lexer.js";
+import { parse } from "./parser.js";
+import { generate } from "./codegen.js";
 
 function run(filePath) {
   const resolved = path.resolve(filePath);
