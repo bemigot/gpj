@@ -47,4 +47,30 @@
 
 **TODO**
 
-Plan the next steps: stdlib (tentatively)
+## STAGE 2
+
+**Goal:** stdlib baseline — end state: `example/gh-ci-stat.gpj`, a GPJ port of
+`project-history/gh-ci-stat-promise.js`, compiles and runs correctly.
+
+32. `String` built-in methods — runtime preamble: `at(n)` → `String | None`; `indexOf(s)` →
+    `Number | None`; `split(sep)` requires separator arg; `String.compare(a, b)` static method
+    (spec §8); `trim`, `slice`, `includes`, `startsWith`, `endsWith`, `toLowerCase`,
+    `toUpperCase`, `replace` pass through unchanged
+33. `Array` built-in methods — runtime preamble: `pop()` / `shift()` / `find(fn)` → `T | None`;
+    `findIndex(fn)` / `indexOf(v)` → `Number | None` (indexOf uses `__gpj_eq`); `sort(cmp)`
+    enforces comparator; `map`, `filter`, `reduce`, `forEach`, `some`, `every`, `join`, `slice`,
+    `concat`, `reverse`, `flat`, `flatMap` pass through
+34. `JSON.decycle` / `JSON.recycle` — add to runtime preamble per stdlib-notes.md;
+    `JSON.parse` / `JSON.stringify` are already JS globals, no work needed
+35. Stdlib import infrastructure — codegen rewrites bare-name imports (no `./` prefix) to
+    absolute paths pointing to `src/stdlib/<name>.js`; CLI refactored to write temp file +
+    spawn Node when generated code contains top-level `import` statements (prerequisite for 36-38)
+36. `http` module — `src/stdlib/http.js`; sync HTTP via subprocess: `get(url, options?)` →
+    `{ok, status, text(), json()}`; drives Node's built-in `fetch` in a child process
+37. `process` module — `src/stdlib/process.js`; re-exports `process.env` (object),
+    `process.argv` as `args` (Array), `process.exit(code)`
+38. `fs` module — `src/stdlib/fs.js`; sync wrappers: `readFile(path)`, `writeFile(path, data)`,
+    `exists(path)`, `readDir(path)`, `makeDir(path)`, `removeFile(path)`
+
+**Milestone:** `example/gh-ci-stat.gpj` — sync GPJ equivalent of the promise-chained JS version;
+uses `http.get`, f-strings, `try`/`catch`, array indexing, object access

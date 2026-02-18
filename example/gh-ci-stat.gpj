@@ -1,0 +1,20 @@
+#!/usr/bin/env gpj
+# GPJ equivalent of project-history/gh-ci-stat-promise.js
+# Uses sync http.get instead of async fetch + .then()/.catch()
+
+import * as http from "http";
+
+val url = "https://api.github.com/repos/bemigot/gpj/actions/runs?per_page=1";
+
+try {
+  val response = http.get(url, { headers: { "User-Agent": "gpj-fetch" } });
+  if (!response.ok) {
+    throw { message: f"HTTP error! status: {response.status}" };
+  }
+  val data = response.json();
+  val latestRun = data.workflow_runs[0];
+  console.log(f"Status: {latestRun.status}");
+  console.log(f"Conclusion: {latestRun.conclusion}");
+} catch (e) {
+  console.error("Error:", e.message);
+}
