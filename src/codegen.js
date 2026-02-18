@@ -1,4 +1,4 @@
-import { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC } from "./gpj_runtime.js";
+import { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC, GPJ_STRING_SRC } from "./gpj_runtime.js";
 
 class CodegenError extends Error {
   constructor(message, node) {
@@ -85,13 +85,12 @@ function generate(node) {
         }
       }
       const body = node.body.map(generate).filter((s) => s !== "").join("\n");
-      const preamble = [];
+      const preamble = [GPJ_STRING_SRC];
       if (usedHelpers.has("add")) preamble.push(GPJ_ADD_SRC);
       if (usedHelpers.has("arith")) preamble.push(GPJ_ARITH_SRC);
       if (usedHelpers.has("eq")) preamble.push(GPJ_EQ_SRC);
       if (usedHelpers.has("typeof")) preamble.push(GPJ_TYPEOF_SRC);
       if (usedHelpers.has("struct")) preamble.push(GPJ_STRUCT_SRC);
-      if (preamble.length === 0) return body;
       return preamble.join("\n") + "\n" + body;
     }
 

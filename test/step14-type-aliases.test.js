@@ -5,7 +5,7 @@ import { runGPJ, execGPJ } from "./helpers.js";
 describe("step 14 — type aliases (parse and skip)", () => {
   it("simple type alias is parsed and skipped", () => {
     const { js } = runGPJ('type ID = String; console.log("ok");');
-    assert.ok(!js.includes("type"), js);
+    assert.ok(!/\btype\b/.test(js), js);
     assert.ok(js.includes("console.log"), js);
   });
 

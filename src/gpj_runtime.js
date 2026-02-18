@@ -68,4 +68,29 @@ const GPJ_STRUCT_SRC = `function __gpj_isStruct(v, shape) {
   return true;
 }`;
 
-export { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC };
+// String built-in patches: at/indexOf return None instead of undefined/-1;
+// split requires a separator; String.compare is a static ordering method.
+const GPJ_STRING_SRC = `{
+  const _sat = String.prototype.at;
+  String.prototype.at = function(n) {
+    const r = _sat.call(this, n);
+    return r === undefined ? null : r;
+  };
+  const _sindexOf = String.prototype.indexOf;
+  String.prototype.indexOf = function(search) {
+    const r = _sindexOf.call(this, search);
+    return r === -1 ? null : r;
+  };
+  const _ssplit = String.prototype.split;
+  String.prototype.split = function(sep) {
+    if (arguments.length === 0) throw new TypeError("String.split requires a separator argument");
+    return _ssplit.call(this, sep);
+  };
+  String.compare = function(a, b) {
+    if (a < b) return -1;
+    if (a > b) return 1;
+    return 0;
+  };
+}`;
+
+export { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC, GPJ_STRING_SRC };

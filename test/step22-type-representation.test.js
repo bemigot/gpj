@@ -76,32 +76,32 @@ describe("step 22 — type representation (annotations parsed into AST)", () => 
 
   it("simple type alias is parsed", () => {
     const { js } = runGPJ("type ID = String; console.log(1);");
-    assert.ok(!js.includes("type"), js);
+    assert.ok(!/\btype\b/.test(js), js);
   });
 
   it("union type alias: type ID = String | Number", () => {
     const { js } = runGPJ("type ID = String | Number; console.log(1);");
-    assert.ok(!js.includes("type"), js);
+    assert.ok(!/\btype\b/.test(js), js);
   });
 
   it("object type alias: type Point = {x: Number, y: Number}", () => {
     const { js } = runGPJ("type Point = {x: Number, y: Number}; console.log(1);");
-    assert.ok(!js.includes("type"), js);
+    assert.ok(!/\btype\b/.test(js), js);
   });
 
   it("tuple type alias: type Pair = [String, Number]", () => {
     const { js } = runGPJ("type Pair = [String, Number]; console.log(1);");
-    assert.ok(!js.includes("type"), js);
+    assert.ok(!/\btype\b/.test(js), js);
   });
 
   it("generic type alias: type Pair<K, V> = [K, V]", () => {
     const { js } = runGPJ("type Pair<K, V> = [K, V]; console.log(1);");
-    assert.ok(!js.includes("type"), js);
+    assert.ok(!/\btype\b/.test(js), js);
   });
 
   it("nullable type alias: type MaybeNum = Number?", () => {
     const { js } = runGPJ("type MaybeNum = Number?; console.log(1);");
-    assert.ok(!js.includes("type"), js);
+    assert.ok(!/\btype\b/.test(js), js);
   });
 
   // --- function type annotations ---
@@ -159,12 +159,12 @@ describe("step 22 — type representation (annotations parsed into AST)", () => 
   it("type annotations do not appear in generated JS", () => {
     const { js } = runGPJ("let x: Number = 42; console.log(x);");
     assert.ok(!js.includes("Number"), `unexpected 'Number' in: ${js}`);
-    assert.ok(!js.includes(":"), `unexpected ':' in: ${js}`);
+    assert.ok(!js.includes(": Number"), `unexpected annotation ':' in: ${js}`);
   });
 
   it("union type does not appear in generated JS", () => {
     const { js } = runGPJ('let v: Number | String = "hi"; console.log(v);');
     assert.ok(!js.includes("Number"), js);
-    assert.ok(!js.includes("String"), js);
+    assert.ok(!js.includes("| String"), js);
   });
 });

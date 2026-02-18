@@ -45,17 +45,15 @@
 31. `Unknown` type — operations on `Unknown` are a type error; narrow with `typeof` first;
     `??` on a non-nullable left operand is a type error
 
-**TODO**
-
 ## STAGE 2
-
-**Goal:** stdlib baseline — end state: `example/gh-ci-stat.gpj`, a GPJ port of
-`project-history/gh-ci-stat-promise.js`, compiles and runs correctly.
 
 32. `String` built-in methods — runtime preamble: `at(n)` → `String | None`; `indexOf(s)` →
     `Number | None`; `split(sep)` requires separator arg; `String.compare(a, b)` static method
     (spec §8); `trim`, `slice`, `includes`, `startsWith`, `endsWith`, `toLowerCase`,
     `toUpperCase`, `replace` pass through unchanged
+
+**TODO**
+
 33. `Array` built-in methods — runtime preamble: `pop()` / `shift()` / `find(fn)` → `T | None`;
     `findIndex(fn)` / `indexOf(v)` → `Number | None` (indexOf uses `__gpj_eq`); `sort(cmp)`
     enforces comparator; `map`, `filter`, `reduce`, `forEach`, `some`, `every`, `join`, `slice`,
@@ -72,5 +70,5 @@
 38. `fs` module — `src/stdlib/fs.js`; sync wrappers: `readFile(path)`, `writeFile(path, data)`,
     `exists(path)`, `readDir(path)`, `makeDir(path)`, `removeFile(path)`
 
-**Milestone:** `example/gh-ci-stat.gpj` — sync GPJ equivalent of the promise-chained JS version;
+**Milestone:** `example/gh-ci-stat.gpj` — synchronous GPJ equivalent of the promise-chained JS version;
 uses `http.get`, f-strings, `try`/`catch`, array indexing, object access
