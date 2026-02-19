@@ -130,4 +130,71 @@ const GPJ_ARRAY_SRC = `{
   };
 }`;
 
-export { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC, GPJ_STRING_SRC, GPJ_ARRAY_SRC };
+// JSON.decycle converts circular structures to trees by replacing back-references
+// with { $ref: "path" } markers.  JSON.recycle is the inverse.
+const GPJ_JSON_SRC = `{
+  JSON.decycle = function(obj) {
+    const seen = [];
+    const paths = [];
+    function derez(val, path) {
+      if (val !== null && typeof val === "object") {
+        for (let i = 0; i < seen.length; i++) {
+          if (seen[i] === val) return { $ref: paths[i] };
+        }
+        seen.push(val);
+        paths.push(path);
+        if (Array.isArray(val)) {
+          return val.map((v, i) => derez(v, path + "[" + i + "]"));
+        }
+        const nu = {};
+        for (const key of Object.keys(val)) {
+          nu[key] = derez(val[key], path + "[" + JSON.stringify(key) + "]");
+        }
+        return nu;
+      }
+      return val;
+    }
+    return derez(obj, "$");
+  };
+  JSON.recycle = function(obj) {
+    function resolve(root, path) {
+      if (path === "$") return root;
+      let p = path.slice(1);
+      let val = root;
+      while (p.length > 0) {
+        const close = p.indexOf("]");
+        const seg = p.slice(1, close);
+        p = p.slice(close + 1);
+        val = val[/^"/.test(seg) ? JSON.parse(seg) : +seg];
+      }
+      return val;
+    }
+    function rerez(val) {
+      if (val !== null && typeof val === "object") {
+        if (Array.isArray(val)) {
+          for (let i = 0; i < val.length; i++) {
+            const v = val[i];
+            if (v !== null && typeof v === "object" && typeof v.$ref === "string") {
+              val[i] = resolve(obj, v.$ref);
+            } else {
+              rerez(v);
+            }
+          }
+        } else {
+          for (const key of Object.keys(val)) {
+            const v = val[key];
+            if (v !== null && typeof v === "object" && typeof v.$ref === "string") {
+              val[key] = resolve(obj, v.$ref);
+            } else {
+              rerez(v);
+            }
+          }
+        }
+      }
+    }
+    rerez(obj);
+    return obj;
+  };
+}`;
+
+export { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC, GPJ_STRING_SRC, GPJ_ARRAY_SRC, GPJ_JSON_SRC };

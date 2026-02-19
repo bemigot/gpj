@@ -55,11 +55,11 @@
     `findIndex(fn)` / `indexOf(v)` → `Number | None` (indexOf uses `__gpj_eq`); `sort(cmp)`
     enforces comparator; `map`, `filter`, `reduce`, `forEach`, `some`, `every`, `join`, `slice`,
     `concat`, `reverse`, `flat`, `flatMap` pass through
+34. `JSON.decycle` / `JSON.recycle` — add to runtime preamble per stdlib-notes.md;
+    `JSON.parse` / `JSON.stringify` are already JS globals, no work needed
 
 **TODO**
 
-34. `JSON.decycle` / `JSON.recycle` — add to runtime preamble per stdlib-notes.md;
-    `JSON.parse` / `JSON.stringify` are already JS globals, no work needed
 35. Stdlib import infrastructure — codegen rewrites bare-name imports (no `./` prefix) to
     absolute paths pointing to `src/stdlib/<name>.js`; CLI refactored to write temp file +
     spawn Node when generated code contains top-level `import` statements (prerequisite for 36-38)

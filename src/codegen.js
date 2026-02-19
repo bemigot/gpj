@@ -1,4 +1,4 @@
-import { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC, GPJ_STRING_SRC, GPJ_ARRAY_SRC } from "./gpj_runtime.js";
+import { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC, GPJ_STRING_SRC, GPJ_ARRAY_SRC, GPJ_JSON_SRC } from "./gpj_runtime.js";
 
 class CodegenError extends Error {
   constructor(message, node) {
@@ -87,7 +87,8 @@ function generate(node) {
       const body = node.body.map(generate).filter((s) => s !== "").join("\n");
       // GPJ_EQ_SRC and GPJ_ARRAY_SRC are always included: array.indexOf
       // uses __gpj_eq, so eq must precede array in the preamble.
-      const preamble = [GPJ_STRING_SRC, GPJ_EQ_SRC, GPJ_ARRAY_SRC];
+      // GPJ_JSON_SRC is always included for JSON.decycle/recycle.
+      const preamble = [GPJ_STRING_SRC, GPJ_EQ_SRC, GPJ_ARRAY_SRC, GPJ_JSON_SRC];
       if (usedHelpers.has("add")) preamble.push(GPJ_ADD_SRC);
       if (usedHelpers.has("arith")) preamble.push(GPJ_ARITH_SRC);
       if (usedHelpers.has("typeof")) preamble.push(GPJ_TYPEOF_SRC);
