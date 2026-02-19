@@ -1,9 +1,14 @@
-**DONE** (scroll down for _TODO_ mark)
+# MILESTONE 1 **DONE**
+
+## STAGE 0 - Define Scope and Language
+* SPEC - review - 3 rounds
+
 #### Step 0.5 — Test infrastructure (prerequisite for all steps)
 - [x] `package.json` with `node --test` as test runner (no dependencies)
 - [x] Test harness: run `.gpj` files, assert stdout/stderr/exit code
 - [x] GitHub Actions CI: run tests on push
 
+## STAGE 1 - Core Language
 #### Steps
 1. `let`/`val` declarations with primitives (Number, String, Boolean, None)
 2. Arithmetic and string concatenation with type checking
@@ -45,7 +50,7 @@
 31. `Unknown` type — operations on `Unknown` are a type error; narrow with `typeof` first;
     `??` on a non-nullable left operand is a type error
 
-## STAGE 2
+## STAGE 2 - stdlib - demo
 
 32. `String` built-in methods — runtime preamble: `at(n)` → `String | None`; `indexOf(s)` →
     `Number | None`; `split(sep)` requires separator arg; `String.compare(a, b)` static method
@@ -69,7 +74,8 @@
 38. `fs` module — `src/stdlib/fs.js`; sync wrappers: `readFile(path)`, `writeFile(path, data)`,
     `exists(path)`, `readDir(path)`, `makeDir(path)`, `removeFile(path)`
 
-**TODO**
-
 **Milestone:** `example/gh-ci-stat.gpj` — synchronous GPJ equivalent of the promise-chained JS version;
 uses `http.get`, f-strings, `try`/`catch`, array indexing, object access
+
+**TODO**
+<TBD>

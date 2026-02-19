@@ -496,6 +496,13 @@ function parse(tokens, initialPrivateCtx = []) {
       advance();
       return { type: "SpreadElement", argument: parseExpression() };
     }
+    // String literal key: { "some-key": value }
+    if (peek().type === TokenType.STRING) {
+      const strTok = advance();
+      expect(TokenType.COLON, "expected ':' after string key");
+      const value = parseExpression();
+      return { type: "Property", key: strTok.value, isStringKey: true, value };
+    }
     if (!WORD_TYPES.has(peek().type)) {
       throw new ParseError("expected property name", peek());
     }

@@ -26,5 +26,17 @@ Or add `bin/` to your `PATH` and use the shebang:
 
 ```
 export PATH=$PWD/bin:$PATH
-./example/hello.gpj
+
+./example/gh-ci-stat.gpj
+
+Project: github.com/bemigot/gpj
+branch:  main
+commit:  e727012
+Status:  completed
+Conclusion: success
+
+by: github.com/mz0
+created: 2026-02-19T14:06:24Z
+started: 2026-02-19T14:06:24Z
+updated: 2026-02-19T14:06:41Z
 ```

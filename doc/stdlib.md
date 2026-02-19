@@ -34,6 +34,8 @@ import * as http from "http";
 val r = http.get("https://example.com/");
 ```
 
+For a complete working program using `http.get`, see `example/gh-ci-stat.gpj`.
+
 ---
 
 ## `process` module

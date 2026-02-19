@@ -1,20 +1,29 @@
 #!/usr/bin/env gpj
-# GPJ equivalent of project-history/gh-ci-stat-promise.js
-# Uses sync http.get instead of async fetch + .then()/.catch()
 
 import * as http from "http";
 
-val url = "https://api.github.com/repos/bemigot/gpj/actions/runs?per_page=1";
+val project = "bemigot/gpj";
+val url = f"https://api.github.com/repos/{project}/actions/runs?per_page=1";
 
+console.log(f"\nProject: github.com/{project}");
 try {
   val response = http.get(url, { headers: { "User-Agent": "gpj-fetch" } });
   if (!response.ok) {
-    throw { message: f"HTTP error! status: {response.status}" };
+    console.error(f"HTTP error {response.status}");
   }
   val data = response.json();
   val latestRun = data.workflow_runs[0];
-  console.log(f"Status: {latestRun.status}");
+  console.log(f"branch:  {latestRun.head_branch}");
+  console.log(f"commit:  {latestRun.head_sha.slice(0, 7)}");
+  console.log(f"Status:  {latestRun.status}");
   console.log(f"Conclusion: {latestRun.conclusion}");
+  console.log(f"\nby: github.com/{latestRun.actor.login}");
+  console.log(f"created: {latestRun.created_at}");
+  console.log(f"started: {latestRun.run_started_at}");
+  console.log(f"updated: {latestRun.updated_at}");
 } catch (e) {
   console.error("Error:", e.message);
 }
+
+#val sha = "e727012e169e1e6cdc3d6ac7d4ec4722b3c8ca63";
+#console.log(sha.slice(0,7));  # FIXME ' ' is not enforced in String.slice(0,7)

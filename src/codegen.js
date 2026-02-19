@@ -201,7 +201,7 @@ function generate(node) {
     case "ObjectLiteral": {
       const props = node.properties.map((p) => {
         if (p.type === "SpreadElement") return generate(p);
-        const key = p.key;
+        const key = p.isStringKey ? JSON.stringify(p.key) : p.key;
         const val = generate(p.value);
         return `${key}: ${val}`;
       });
