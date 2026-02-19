@@ -1,4 +1,9 @@
 import { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC, GPJ_STRING_SRC, GPJ_ARRAY_SRC, GPJ_JSON_SRC } from "./gpj_runtime.js";
+import { fileURLToPath } from "node:url";
+import * as nodePath from "node:path";
+
+// Absolute file:// URL prefix for the stdlib directory, derived from this file's location.
+const STDLIB_URL = new URL("./stdlib/", import.meta.url).href;
 
 class CodegenError extends Error {
   constructor(message, node) {
@@ -98,11 +103,15 @@ function generate(node) {
 
     case "ImportDeclaration": {
       const specs = node.specifiers;
-      // Relative paths need .js extension for Node ESM resolution
       let sourcePath = node.source;
-      if ((sourcePath.startsWith("./") || sourcePath.startsWith("../")) &&
-          !sourcePath.endsWith(".js") && !sourcePath.endsWith(".mjs")) {
-        sourcePath += ".js";
+      if (sourcePath.startsWith("./") || sourcePath.startsWith("../")) {
+        // Relative path — add .js extension for Node ESM resolution
+        if (!sourcePath.endsWith(".js") && !sourcePath.endsWith(".mjs")) {
+          sourcePath += ".js";
+        }
+      } else {
+        // Bare name — rewrite to absolute stdlib file:// URL
+        sourcePath = STDLIB_URL + sourcePath + ".js";
       }
       if (specs.length === 1 && specs[0].type === "ImportNamespaceSpecifier") {
         return `import * as ${specs[0].local} from ${JSON.stringify(sourcePath)};`;

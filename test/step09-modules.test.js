@@ -30,10 +30,10 @@ describe("step 9 — modules (import/export)", () => {
     assert.ok(js.includes('import * as utils from "./utils.js"'), js);
   });
 
-  it("bare import path (stdlib) has no .js added", () => {
+  it("bare import path (stdlib) is rewritten to absolute file:// URL", () => {
     const { js } = runGPJ('import * as fs from "fs";');
-    assert.ok(js.includes('from "fs"'), js);
-    assert.ok(!js.includes('from "fs.js"'), js);
+    assert.ok(js.includes("file://"), js);
+    assert.ok(js.includes("/stdlib/fs.js"), js);
   });
 
   // --- export parsing ---

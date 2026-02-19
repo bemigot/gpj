@@ -57,12 +57,12 @@
     `concat`, `reverse`, `flat`, `flatMap` pass through
 34. `JSON.decycle` / `JSON.encycle` — add to runtime preamble per stdlib-notes.md;
     `JSON.parse` / `JSON.stringify` are already JS globals, no work needed
-
-**TODO**
-
 35. Stdlib import infrastructure — codegen rewrites bare-name imports (no `./` prefix) to
     absolute paths pointing to `src/stdlib/<name>.js`; CLI refactored to write temp file +
     spawn Node when generated code contains top-level `import` statements (prerequisite for 36-38)
+
+**TODO**
+
 36. `http` module — `src/stdlib/http.js`; sync HTTP via subprocess: `get(url, options?)` →
     `{ok, status, text(), json()}`; drives Node's built-in `fetch` in a child process
 37. `process` module — `src/stdlib/process.js`; re-exports `process.env` (object),
