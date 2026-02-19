@@ -10,7 +10,7 @@ These are implementation-level decisions, not language spec changes.
 Returns a tree-structured copy where circular references are replaced with
 `{ $ref: "path.string" }` objects. Does not mutate the original.
 
-### `JSON.recycle(obj: Unknown): Unknown`
+### `JSON.encycle(obj: Unknown): Unknown`
 
 Reciprocal of `decycle`. Walks the tree, resolves `$ref` path strings back into
 live references, restoring the original circular structure. Mutates in place.

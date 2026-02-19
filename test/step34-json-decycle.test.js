@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execGPJ, runGPJ } from "./helpers.js";
 
-describe("step 34 — JSON.decycle / JSON.recycle", () => {
+describe("step 34 — JSON.decycle / JSON.encycle", () => {
   // --- JSON.decycle ---
 
   it("decycle flat object returns equivalent value", () => {
@@ -88,50 +88,50 @@ JSON.stringify(a);
     assert.match(stderr, /circular/i);
   });
 
-  // --- JSON.recycle ---
+  // --- JSON.encycle ---
 
-  it("recycle self-reference — d.self.x equals d.x", () => {
+  it("encycle self-reference — d.self.x equals d.x", () => {
     const { stdout } = execGPJ(`
 let a = {x: 42};
 a.self = a;
 let d = JSON.decycle(a);
-JSON.recycle(d);
+JSON.encycle(d);
 console.log(d.self.x);
 `);
     assert.equal(stdout, "42\n");
   });
 
-  it("recycle self-reference — d.self is same object as d", () => {
+  it("encycle self-reference — d.self is same object as d", () => {
     const { stdout } = execGPJ(`
 let a = {x: 1};
 a.self = a;
 let d = JSON.decycle(a);
-JSON.recycle(d);
+JSON.encycle(d);
 d.x = 99;
 console.log(d.self.x);
 `);
     assert.equal(stdout, "99\n");
   });
 
-  it("recycle mutual references restores both links", () => {
+  it("encycle mutual references restores both links", () => {
     const { stdout } = execGPJ(`
 let a = {v: 1};
 let b = {v: 2};
 a.other = b;
 b.other = a;
 let d = JSON.decycle(a);
-JSON.recycle(d);
+JSON.encycle(d);
 console.log(d.other.v);
 console.log(d.other.other.v);
 `);
     assert.equal(stdout, "2\n1\n");
   });
 
-  it("recycle returns the same object", () => {
+  it("encycle returns the same object", () => {
     const { stdout } = execGPJ(`
 let a = {x: 5};
 let d = JSON.decycle(a);
-let r = JSON.recycle(d);
+let r = JSON.encycle(d);
 console.log(r.x);
 `);
     assert.equal(stdout, "5\n");

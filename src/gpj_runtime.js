@@ -131,7 +131,7 @@ const GPJ_ARRAY_SRC = `{
 }`;
 
 // JSON.decycle converts circular structures to trees by replacing back-references
-// with { $ref: "path" } markers.  JSON.recycle is the inverse.
+// with { $ref: "path" } markers.  JSON.encycle is the inverse.
 const GPJ_JSON_SRC = `{
   JSON.decycle = function(obj) {
     const seen = [];
@@ -156,7 +156,7 @@ const GPJ_JSON_SRC = `{
     }
     return derez(obj, "$");
   };
-  JSON.recycle = function(obj) {
+  JSON.encycle = function(obj) {
     function resolve(root, path) {
       if (path === "$") return root;
       let p = path.slice(1);

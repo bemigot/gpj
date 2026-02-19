@@ -55,7 +55,7 @@
     `findIndex(fn)` / `indexOf(v)` → `Number | None` (indexOf uses `__gpj_eq`); `sort(cmp)`
     enforces comparator; `map`, `filter`, `reduce`, `forEach`, `some`, `every`, `join`, `slice`,
     `concat`, `reverse`, `flat`, `flatMap` pass through
-34. `JSON.decycle` / `JSON.recycle` — add to runtime preamble per stdlib-notes.md;
+34. `JSON.decycle` / `JSON.encycle` — add to runtime preamble per stdlib-notes.md;
     `JSON.parse` / `JSON.stringify` are already JS globals, no work needed
 
 **TODO**
