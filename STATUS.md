@@ -51,13 +51,13 @@
     `Number | None`; `split(sep)` requires separator arg; `String.compare(a, b)` static method
     (spec §8); `trim`, `slice`, `includes`, `startsWith`, `endsWith`, `toLowerCase`,
     `toUpperCase`, `replace` pass through unchanged
-
-**TODO**
-
 33. `Array` built-in methods — runtime preamble: `pop()` / `shift()` / `find(fn)` → `T | None`;
     `findIndex(fn)` / `indexOf(v)` → `Number | None` (indexOf uses `__gpj_eq`); `sort(cmp)`
     enforces comparator; `map`, `filter`, `reduce`, `forEach`, `some`, `every`, `join`, `slice`,
     `concat`, `reverse`, `flat`, `flatMap` pass through
+
+**TODO**
+
 34. `JSON.decycle` / `JSON.recycle` — add to runtime preamble per stdlib-notes.md;
     `JSON.parse` / `JSON.stringify` are already JS globals, no work needed
 35. Stdlib import infrastructure — codegen rewrites bare-name imports (no `./` prefix) to

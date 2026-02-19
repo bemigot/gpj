@@ -253,8 +253,8 @@ describe("step 8 — deep equality (__gpj_eq)", () => {
     assert.ok(js.includes("function __gpj_eq"), "expected __gpj_eq definition");
   });
 
-  it("__gpj_eq not injected when == not used", () => {
+  it("__gpj_eq always injected (step 33: array.indexOf uses it)", () => {
     const { js } = runGPJ("console.log(1 + 2);");
-    assert.ok(!js.includes("__gpj_eq"), "expected no __gpj_eq when not needed");
+    assert.ok(js.includes("function __gpj_eq"), "expected __gpj_eq always present");
   });
 });

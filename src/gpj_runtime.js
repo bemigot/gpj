@@ -93,4 +93,41 @@ const GPJ_STRING_SRC = `{
   };
 }`;
 
-export { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC, GPJ_STRING_SRC };
+// Array built-in patches: pop/shift/find return None instead of undefined;
+// findIndex/indexOf return None instead of -1; indexOf uses deep equality;
+// sort requires an explicit comparator argument.
+const GPJ_ARRAY_SRC = `{
+  const _apop = Array.prototype.pop;
+  Array.prototype.pop = function() {
+    const r = _apop.call(this);
+    return r === undefined ? null : r;
+  };
+  const _ashift = Array.prototype.shift;
+  Array.prototype.shift = function() {
+    const r = _ashift.call(this);
+    return r === undefined ? null : r;
+  };
+  const _afind = Array.prototype.find;
+  Array.prototype.find = function(fn) {
+    const r = _afind.call(this, fn);
+    return r === undefined ? null : r;
+  };
+  const _afindIndex = Array.prototype.findIndex;
+  Array.prototype.findIndex = function(fn) {
+    const r = _afindIndex.call(this, fn);
+    return r === -1 ? null : r;
+  };
+  Array.prototype.indexOf = function(value) {
+    for (let i = 0; i < this.length; i++) {
+      if (__gpj_eq(this[i], value)) return i;
+    }
+    return null;
+  };
+  const _asort = Array.prototype.sort;
+  Array.prototype.sort = function(cmp) {
+    if (arguments.length === 0) throw new TypeError("Array.sort requires a comparator argument");
+    return _asort.call(this, cmp);
+  };
+}`;
+
+export { GPJ_ADD_SRC, GPJ_ARITH_SRC, GPJ_EQ_SRC, GPJ_TYPEOF_SRC, GPJ_STRUCT_SRC, GPJ_STRING_SRC, GPJ_ARRAY_SRC };
