@@ -1,0 +1,9 @@
+#!/usr/bin/env gpj
+import env, args, exit from "process";
+
+console.log('HOME ==', env.HOME);
+console.log(args.length);
+for (val arg of args) {
+  console.log(arg);
+}
+exit(0);

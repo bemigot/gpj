@@ -66,10 +66,10 @@
 37. `process` module — `src/stdlib/process.js`; re-exports `process.env` (object),
     `process.argv` as `args` (Array), `process.exit(code)`
 
-**TODO**
-
 38. `fs` module — `src/stdlib/fs.js`; sync wrappers: `readFile(path)`, `writeFile(path, data)`,
     `exists(path)`, `readDir(path)`, `makeDir(path)`, `removeFile(path)`
+
+**TODO**
 
 **Milestone:** `example/gh-ci-stat.gpj` — synchronous GPJ equivalent of the promise-chained JS version;
 uses `http.get`, f-strings, `try`/`catch`, array indexing, object access
