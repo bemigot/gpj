@@ -22,6 +22,14 @@ Requires [Node.js](https://nodejs.org) (LTS v24 recommended).
 node src/cli.js example/hello.gpj
 ```
 
+To inspect the generated JavaScript, set `GPJ_PRESERVE_OUT=1` — the compiled
+`.mjs` file is kept instead of being deleted after execution:
+
+```
+GPJ_PRESERVE_OUT=1 ./example/process-demo.gpj
+# gpj: compiled output preserved at: /tmp/gpj-XXXX/out.mjs
+```
+
 Or add `bin/` to your `PATH` and use the shebang:
 
 ```
