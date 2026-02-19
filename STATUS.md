@@ -60,11 +60,11 @@
 35. Stdlib import infrastructure — codegen rewrites bare-name imports (no `./` prefix) to
     absolute paths pointing to `src/stdlib/<name>.js`; CLI refactored to write temp file +
     spawn Node when generated code contains top-level `import` statements (prerequisite for 36-38)
+36. `http` module — `src/stdlib/http.js`; sync HTTP via subprocess: `get(url, options?)` →
+    `{ok, status, text(), json()}`; drives Node's built-in `fetch` in a child process
 
 **TODO**
 
-36. `http` module — `src/stdlib/http.js`; sync HTTP via subprocess: `get(url, options?)` →
-    `{ok, status, text(), json()}`; drives Node's built-in `fetch` in a child process
 37. `process` module — `src/stdlib/process.js`; re-exports `process.env` (object),
     `process.argv` as `args` (Array), `process.exit(code)`
 38. `fs` module — `src/stdlib/fs.js`; sync wrappers: `readFile(path)`, `writeFile(path, data)`,
