@@ -1,0 +1,52 @@
+#!/usr/bin/env gpj
+
+type Point = {x: Number, y: Number};
+type HttpError = {message: String, code: Number};
+type NetworkError = {message: String, url: String};
+type ID = String | Number;
+
+# --- Point alias ---
+
+val p: Point = {x: 0.5, y: 0.2};
+val origin: Point = {x: 0.0, y: 0.0};
+
+function distance(a: Point, b: Point): Number {
+  val dx = a.x - b.x;
+  val dy = a.y - b.y;
+  return Math.sqrt((dx * dx) + (dy * dy));
+}
+
+console.log(f"p = ({p.x}, {p.y})");
+console.log(f"distance from origin: {distance(p, origin).toFixed(4)}");
+
+# --- typed catch: selective matching ---
+
+function apiCall(code: Number) {
+  if (code >= 400) {
+    throw {message: "request failed", code: code};
+  }
+  return "ok";
+}
+
+try {
+  apiCall(404);
+} catch (e: HttpError) {
+  console.log(f"HttpError {e.code}: {e.message}");
+} catch (e: NetworkError) {
+  console.log(f"NetworkError at {e.url}: {e.message}");
+} catch (e) {
+  console.log(f"unknown: {e.message}");
+}
+
+# --- union type alias ---
+
+function printId(id: ID) {
+  if (typeof id == "String") {
+    console.log(f"string ID: {id}");
+  } else {
+    console.log(f"numeric ID: {id}");
+  }
+}
+
+printId("user-42");
+printId(100);

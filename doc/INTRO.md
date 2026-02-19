@@ -1,4 +1,4 @@
-# The `??` operator (nullish coalescing)
+## The `??` operator (nullish coalescing)
 
 `??` returns its left-hand side unless it is `None`, in which case it
 returns the right-hand side.
@@ -8,7 +8,7 @@ let name = None ?? "anonymous";   # "anonymous"
 let port = 8080 ?? 3000;          # 8080
 ```
 
-## How it differs from `||`
+### How it differs from `||`
 
 `||` treats **any** falsy value as "missing" — `0`, `""`, `false`, and
 `None` all trigger the fallback.  `??` only triggers on `None`.
@@ -32,7 +32,7 @@ falsy-value problem as `||` — `0 or 10` gives `10`, not `0`.
 
 The `??` operator was introduced in JavaScript as part of the ECMAScript 2020 (ES11) standard.
 
-## Chaining
+### Chaining
 
 `??` chains left-to-right, so the first non-`None` value wins:
 
@@ -40,7 +40,7 @@ The `??` operator was introduced in JavaScript as part of the ECMAScript 2020 (E
 let x = None ?? None ?? 3;   # 3
 ```
 
-## Mixing with other operators
+### Mixing with other operators
 
 GPJ has no implicit precedence between different operators.  Mixing `??`
 with `+`, `==`, etc. without parentheses is a **parse error**:
@@ -59,7 +59,7 @@ so the language makes you say which one you mean.
 
 ---
 
-# Type aliases
+## Type aliases
 
 GPJ supports type alias declarations:
 
@@ -68,47 +68,82 @@ type Point = {x: Number, y: Number};
 type ID = String | Number;
 ```
 
-## Current status: parsed but not enforced
+### Current status
 
 The transpiler recognises `type` declarations and parses them without
-error, but **discards them** during code generation.  No type-checking
-happens at compile time or at runtime.  This means:
+error, and a type-checker runs on every compile.  **Typed catch blocks
+work at runtime** (see below).  Here is what is and is not enforced:
 
-1. **Annotations are documentation only.**  You can write
-   `let p: Point = {x: 1, y: 2};` and the compiler accepts it, but it
-   will also accept `let p: Point = "oops";` without complaint.
+1. **Primitive annotations are checked against literal values.**
+   `let x: Number = "oops"` is a compile-time `TypeCheckError`.
+   The same applies to `String`, `Boolean`, `None`, `Array<T>`, function
+   return types, and reassignments.  Annotations referencing custom type
+   aliases (`let p: Point = ...`) are deferred -- the checker is permissive
+   for non-primitive named types, so `let p: Point = "oops"` still compiles
+   without error.
 
-2. **Typed catch blocks are inert.**  The spec describes catch blocks
-   that structurally match a type annotation:
+2. **Typed catch blocks fire on structural match.**  The runtime checks
+   that the thrown value is a non-null, non-array object with every
+   declared field present and having the right GPJ type:
    ```
    type HttpError = {message: String, code: Number};
-   try { ... } catch (e: HttpError) { ... }
+   try {
+     throw {message: "not found", code: 404};
+   } catch (e: HttpError) {
+     console.log(e.code);   # 404
+   } catch (e) {
+     console.log("other");
+   }
    ```
-   Currently the annotation is skipped and the catch block fires for
-   any thrown value, regardless of shape.
+   A non-matching value is re-thrown to the next handler or outer try.
+   Multiple typed catch blocks, union annotations (`HttpError | ValueError`),
+   and `finally` are all supported.
 
 3. **No compile-time safety net.**  Misspelled property names, wrong
    argument types, missing fields -- none of these are caught before
    execution.  You find out at runtime (if at all), just like plain
    JavaScript.
 
-## What changes when type-checking is added
+### Gotchas for typed catch
 
-Once the type checker is implemented, `type` aliases become real
-constraints:
+**Matching is structural and open.**  Extra fields in the thrown object
+are fine -- only the declared fields are checked.  A `{message: String}`
+annotation matches `{message: "oops", extra: 42}`.
 
-- A function `export function move(p: Point)` will reject calls with
-  the wrong shape at compile time.
-- Typed catch blocks will only fire when the thrown value structurally
-  matches the declared type; non-matching exceptions propagate.
-- Union types (`ID = String | Number`) will require narrowing before
-  you can use type-specific operations.
-- Inference will fill in omitted annotations inside function bodies,
-  but exported signatures must be explicit.
+**Only top-level type aliases are resolvable.**  A `type` declaration
+inside a function body is not visible to the catch resolver.  Referencing
+it in a catch annotation silently falls back to a catch-all.
 
-Until then, type aliases serve as **machine-readable intent** -- they
-document the programmer's expectation and will be enforced once the
-checker exists.
+**Field types must be simple GPJ primitives.**  Each field annotation
+must be a bare type name that maps directly to `__gpj_typeof` output:
+`String`, `Number`, `Boolean`, `None`, `Array`, `Object`, `Function`.
+Two cases fall back silently to catch-all:
+
+- *Inline object field type*: `{inner: {x: Number}}` -- the field type
+  is not a simple name, so the whole shape is unresolvable.
+- *Type alias as field type*: `{inner: MyType}` where `MyType` is a
+  type alias -- the resolver stores `"MyType"` in the shape, but
+  `__gpj_typeof` at runtime returns `"Object"`, never `"MyType"`.
+  Every value of `inner` fails the check, making the catch block
+  unreachable.
+
+**Union fallback.**  If any member of a union annotation is unresolvable,
+the whole union falls back to catch-all.
+
+## What the type checker does not yet cover
+
+The type checker is live but partial.  Remaining gaps:
+
+- **Custom type alias annotations on variables** are not yet enforced.
+  `let p: Point = "oops"` compiles without error.
+- **Object structural checking** -- a function `export function move(p: Point)`
+  does not yet reject calls with the wrong shape at compile time.
+- **Full type inference** -- return types of unannotated functions,
+  types of binary expressions, and call-site argument types are not
+  propagated.
+
+Type aliases on variables and function signatures serve as
+**machine-readable intent** in these areas until the checker is extended.
 
 ---
 

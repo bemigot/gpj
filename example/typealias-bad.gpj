@@ -1,0 +1,60 @@
+#!/usr/bin/env gpj
+
+# Illustration of what the type system catches today and what it does not.
+# The runnable sections execute; compile-time error examples are commented out.
+
+type Point = {x: Number, y: Number};
+type HttpError = {message: String, code: Number};
+
+# ===========================================================================
+# RUNTIME: typed catch re-throws when the thrown shape does not match
+# ===========================================================================
+
+try {
+  try {
+    throw {message: "not found"};         # missing 'code' — does not match HttpError
+  } catch (e: HttpError) {
+    console.log("HttpError: should not reach here");
+  }
+} catch (e) {
+  console.log(f"outer catch (re-thrown): {e.message}");
+}
+
+try {
+  throw {message: "gone", code: 410};    # matches HttpError
+} catch (e: HttpError) {
+  console.log(f"HttpError {e.code}: {e.message}");
+}
+
+# ===========================================================================
+# COMPILE-TIME ERRORS (uncomment each block to see the TypeCheckError)
+# ===========================================================================
+
+#   let x: Number = "oops";
+#   => TypeCheckError: type mismatch: expected Number, got String
+
+#   function f(): Number { return "nope"; }
+#   => TypeCheckError: type mismatch: expected Number, got String
+
+#   let a: Array<Number> = [1, "two", 3];
+#   => TypeCheckError: type mismatch: expected Number, got String
+
+# ===========================================================================
+# NOT YET ENFORCED — these compile cleanly but should be errors
+# ===========================================================================
+
+# Custom alias in variable annotation — checker accepts any value for Point:
+val p: Point = "this is not a Point";
+console.log(f"p.x = {p.x}");            # undefined — wrong value slipped through
+
+# Function parameter shapes are not checked at the call site:
+function distance(a: Point, b: Point): Number {
+  val dx = a.x - b.x;
+  val dy = a.y - b.y;
+  return Math.sqrt((dx * dx) + (dy * dy));
+}
+try {
+  console.log(distance("wrong", 42));   # accepted at compile time, TypeError at runtime
+} catch (e) {
+  console.log(f"runtime crash: {e.message}");
+}
