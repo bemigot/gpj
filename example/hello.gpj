@@ -1,3 +1,7 @@
 #!/usr/bin/env gpj
 
 console.log("Hello,", "CLI", "world!");
+console.log(42);
+console.log(1, 2.3, "let's go");
+console.log(true, false, None);
+console.error("Just kidding");

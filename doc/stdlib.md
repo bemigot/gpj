@@ -68,12 +68,7 @@ All operations are **synchronous** and throw on error (file not found,
 permission denied, etc.).
 
 ```gpj
-import readFile   from "fs";
-import writeFile  from "fs";
-import exists     from "fs";
-import readDir    from "fs";
-import makeDir    from "fs";
-import removeFile from "fs";
+import readFile, writeFile, exists, readDir, makeDir, removeFile from "fs";
 
 writeFile("/tmp/note.txt", "hello");
 console.log(readFile("/tmp/note.txt"));    # hello
@@ -97,7 +92,7 @@ console.log(fs.readFile("/tmp/x.txt"));
 
 ### Notes
 
-- `readFile` / `writeFile` use UTF-8 encoding.
+- `readFile` / `writeFile` use UTF-8 encoding. **FIXME**
 - `readDir` returns entry **names** (not full paths); prepend the directory
   yourself: `f"{dir}/{name}"`.
 - `makeDir` is recursive — it creates all intermediate directories and does

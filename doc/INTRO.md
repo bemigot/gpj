@@ -147,7 +147,7 @@ Type aliases on variables and function signatures serve as
 
 ---
 
-# F-strings (string interpolation)
+## F-strings (string interpolation)
 
 Prefix a string with `f` to embed expressions inside `{...}`:
 
@@ -169,7 +169,7 @@ console.log(f"count: {items.length}");           # count: 3
 console.log(f"{x > 0 ? "positive" : "nope"}");  # positive
 ```
 
-## Formatting numbers
+### Formatting numbers
 
 F-strings call `toString()` on each interpolated value -- the same
 protocol used by `console.log`.  For finer control, call formatting
@@ -191,7 +191,7 @@ console.log(f"{String(7).padStart(3, "0")}");    # 007
 console.log(f"[{String(42).padEnd(8)}]");        # [42      ]
 ```
 
-## Literal braces
+### Literal braces
 
 Double them: `{{` produces `{`, `}}` produces `}`.
 
@@ -199,7 +199,7 @@ Double them: `{{` produces `{`, `}}` produces `}`.
 console.log(f"set = {{1, 2, 3}}");   # set = {1, 2, 3}
 ```
 
-## How it compiles
+### How it compiles
 
 `f"hello {name}"` transpiles to the JavaScript template literal
 `` `hello ${String(name)}` ``.  The `String()` wrapper ensures

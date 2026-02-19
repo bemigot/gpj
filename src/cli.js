@@ -40,7 +40,7 @@ function run(filePath) {
     process.exit(err.status ?? 1);
   } finally {
     if (process.env.GPJ_PRESERVE_OUT) {
-      console.error(`gpj: compiled output preserved at: ${tmpFile}`);
+      console.warn(`gpj: compiled output preserved at: ${tmpFile}`);
     } else {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
