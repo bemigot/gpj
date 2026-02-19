@@ -63,10 +63,11 @@
 36. `http` module — `src/stdlib/http.js`; sync HTTP via subprocess: `get(url, options?)` →
     `{ok, status, text(), json()}`; drives Node's built-in `fetch` in a child process
 
-**TODO**
-
 37. `process` module — `src/stdlib/process.js`; re-exports `process.env` (object),
     `process.argv` as `args` (Array), `process.exit(code)`
+
+**TODO**
+
 38. `fs` module — `src/stdlib/fs.js`; sync wrappers: `readFile(path)`, `writeFile(path, data)`,
     `exists(path)`, `readDir(path)`, `makeDir(path)`, `removeFile(path)`
 
